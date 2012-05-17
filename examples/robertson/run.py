@@ -5,7 +5,7 @@ import numpy
 import matplotlib.pyplot as plt
 
 
-sigma = 0.5;
+sigma = 0.1;
 ntimes = 20;
 tspan = numpy.linspace(0, 40, ntimes);
 ysim = odesolve(model, tspan)
@@ -36,11 +36,14 @@ def step(mcmc):
 opts = mcmc_hessian.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
-#opts.estimate_params = model.parameters
-#opts.initial_values = [1, 1e5, 1e3, 1e-2, 1e-2, 1e-2]
-opts.estimate_params = [model.parameters[n] for n in ('k1', 'k2')]
-opts.initial_values = [1e-4, 1e3]
-opts.nsteps = 1000
+
+opts.estimate_params = model.parameters
+opts.initial_values = [1e-4, 1e3, 1e6, 1e-1, 1e-1, 1e-1]
+
+#opts.estimate_params = [p for p in model.parameters if p.name.startswith('k') ]
+#opts.initial_values = [1e-4, 1e3, 1e6]
+
+opts.nsteps = 5000
 opts.likelihood_fn = likelihood
 opts.step_fn = step
 opts.use_hessian = True
@@ -51,7 +54,8 @@ mcmc.run()
 
 print
 print '%-10s %-12s %-12s %-12s' % ('param', 'actual', 'fitted', '% error')
-for param, new_value in zip(model.parameters, mcmc.cur_params()):
+fitted_values = mcmc.cur_params()[mcmc.estimate_idx]
+for param, new_value in zip(opts.estimate_params, fitted_values):
     error = abs(1 - param.value / new_value) * 100
     values = (param.name, param.value, new_value, error)
     print '%-10s %-12g %-12g %-12g' % values
