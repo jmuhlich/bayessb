@@ -35,15 +35,23 @@ def step(mcmc):
              mcmc.accept_prior, mcmc.accept_posterior)
 
 
+scenario = 1
+
 opts = mcmc_hessian.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
 
-opts.estimate_params = model.parameters
-opts.initial_values = [1e-4, 1e3, 1e6, 1e-1, 1e-1, 1e-1]
-
-#opts.estimate_params = [p for p in model.parameters if p.name.startswith('k') ]
-#opts.initial_values = [1e-4, 1e3, 1e6]
+# A few estimation scenarios:
+if scenario == 1:
+    # estimate all parameters from wild guesses (orders of magnitude off)
+    opts.estimate_params = model.parameters
+    opts.initial_values = [1e-4, 1e3, 1e6, 1e-1, 1e-1, 1e-1]
+elif scenario == 2:
+    # estimate rates only (not initial conditions) from wild guesses
+    opts.estimate_params = [p for p in model.parameters if p.name.startswith('k') ]
+    opts.initial_values = [1e-4, 1e3, 1e6]
+else:
+    raise RuntimeError("unknown scenario number")
 
 opts.nsteps = 5000
 opts.likelihood_fn = likelihood
