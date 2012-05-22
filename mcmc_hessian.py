@@ -19,6 +19,7 @@ class MCMC(object):
         self.iter = 0
         self.start_iter = 0
         self.ode_options = {}
+        self.random = None  # random number generator
 
         # likelihood, prior, and posterior are also all log-transformed
         self.initial_likelihood = None
@@ -120,6 +121,8 @@ class MCMC(object):
         if self.options.abstol is not None:
             self.ode_options['abstol'] = self.options.abstol
 
+        self.random = np.random.RandomState(self.options.seed)
+
         self.start_iter = 0;
         self.acceptance = 0;
         self.T = self.options.T_init;
@@ -162,7 +165,7 @@ class MCMC(object):
             if math.e ** delta_posterior < 1:
                 self.accept_move()
             else:
-                alpha = np.random.random()
+                alpha = self.random.rand()
                 self.alphas[self.iter] = alpha;  # log the alpha value
                 if math.e ** (-delta_posterior/self.T) > alpha:
                     self.accept_move()
@@ -231,7 +234,7 @@ class MCMC(object):
         resulting vector to obtain a vector sampled uniformly on the unit
         hypersphere. Then scale by norm_step_size and ig_value, and add the
         resulting vector to our current position."""
-        step = np.random.randn(self.num_estimate)
+        step = self.random.randn(self.num_estimate)
         if not self.options.use_hessian \
                 or self.iter < self.options.hessian_period \
                 or self.hessian is None:
@@ -338,3 +341,4 @@ class MCMCOpts(object):
         self.sigma_max          = 1     # max value for sigma (MCMC step size scaling factor)
         self.sigma_min          = 0.25  # min value for sigma
         self.sigma_step         = 0.125 # increment for sigma adjustments, to retain accept_rate_target
+        self.seed               = None  # seed for random number generator

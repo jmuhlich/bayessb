@@ -5,13 +5,15 @@ import numpy
 import matplotlib.pyplot as plt
 
 
+seed = 2
+random = numpy.random.RandomState(seed)
 sigma = 0.1;
 ntimes = 20;
 tspan = numpy.linspace(0, 40, ntimes);
 ysim = odesolve(model, tspan)
 ysim_array = ysim.view().reshape(len(tspan), len(ysim.dtype))
 yspecies = ysim_array[:, :len(model.species)]
-ydata = yspecies * (numpy.random.randn(*yspecies.shape) * sigma + 1);
+ydata = yspecies * (random.randn(*yspecies.shape) * sigma + 1);
 ysim_max = yspecies.max(0)
 ydata_norm = ydata / ysim_max
 
@@ -48,6 +50,7 @@ opts.likelihood_fn = likelihood
 opts.step_fn = step
 opts.use_hessian = True
 opts.hessian_period = opts.nsteps / 10
+opts.seed = seed
 mcmc = mcmc_hessian.MCMC(opts)
 
 mcmc.run()
