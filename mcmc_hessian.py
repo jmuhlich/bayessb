@@ -209,13 +209,16 @@ class MCMC(object):
     def reject_move(self):
         self.rejects[self.iter] = 1;
 
-    def simulate(self, position=None):
+    def simulate(self, position=None, observables=False):
         if position is None:
             position = self.position
         ysim = pysb.integrate.odesolve(self.options.model, self.options.tspan, self.cur_params(position))
-        ysim_array = ysim.view().reshape(len(self.options.tspan), len(ysim.dtype))
-        yspecies = ysim_array[:, :len(self.options.model.species)]
-        return yspecies
+        if observables:
+            yout = ysim
+        else:
+            ysim_array = ysim.view().reshape(len(self.options.tspan), len(ysim.dtype))
+            yout = ysim_array[:, :len(self.options.model.species)]
+        return yout
 
     def cur_params(self, position=None):
         """Return the parameter values corresponding to a position in phase
