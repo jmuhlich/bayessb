@@ -212,7 +212,9 @@ class MCMC(object):
     def simulate(self, position=None, observables=False):
         if position is None:
             position = self.position
-        ysim = pysb.integrate.odesolve(self.options.model, self.options.tspan, self.cur_params(position))
+        ysim = pysb.integrate.odesolve(self.options.model, self.options.tspan,
+                                       self.cur_params(position),
+                                       **self.ode_options)
         if observables:
             yout = ysim
         else:
