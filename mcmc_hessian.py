@@ -62,7 +62,7 @@ class MCMC(object):
             raise Exception("model must be a PySB model")
 
         if not options.estimate_params or not len(options.estimate_params):
-            raise Excepction("estimate_params must contain a list of parameters")
+            raise Exception("estimate_params must contain a list of parameters")
             
         # clamp hessian_period to actual number of steps
         if options.use_hessian:
@@ -175,7 +175,7 @@ class MCMC(object):
             # -------ADJUSTING SIGMA & TEMPERATURE (ANNEALING)--------
             if self.iter < self.options.anneal_length \
                and self.iter % self.options.sigma_adj_interval == 0:
-                if self.acceptance / (self.iter + 1) < self.options.accept_rate_target:
+                if float(self.acceptance) / (self.iter + 1) < self.options.accept_rate_target:
                     if self.sig_value > self.options.sigma_min:
                         self.sig_value -= self.options.sigma_step
                     elif self.sig_value < self.options.sigma_max:
@@ -226,7 +226,7 @@ class MCMC(object):
         values = np.array([p.value for p in self.options.model.parameters])
         # now "overlay" any rates we are estimating, by extracting them from
         # position and inverting the log transform
-        values[self.estimate_idx] = 10 ** position
+        values[self.estimate_idx] = np.power(10, position)
         return values
 
     def generate_new_position(self):
