@@ -1,7 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mgridspec
 import matplotlib.ticker as mticker
+import matplotlib
+import mpl_toolkits.mplot3d as mplot3d
+import numpy
 import math
+import itertools
+import pysb.integrate
 
 def scatter(mcmc, mask=True):
     """
@@ -44,6 +49,7 @@ def scatter(mcmc, mask=True):
     # calculate new ranges based on limits
     lim_ranges = abs(lims_top - lims_bottom)
 
+    plt.figure()
     # build a GridSpec which allocates space based on these ranges
     gs = mgridspec.GridSpec(ndims, ndims, width_ratios=lim_ranges,
                             height_ratios=lim_ranges[-1::-1])
@@ -97,4 +103,81 @@ def scatter(mcmc, mask=True):
                 ax.tick_params('x', labeltop=True)
             # move to next figure in the gridspec
             fignum += 1
+    # TODO: would axis('scaled') force the aspect ratio we want?
+    plt.show()
+
+def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
+    """
+    Display the posterior of an MCMC walk as a 3-D surface.
+
+    Parameters
+    ----------
+    mcmc : mcmc_hessian.MCMC
+        The MCMC object to display.
+    dim0, dim1 : indices of parameters to display
+    mask : bool/int, optional
+        If True (default) the annealing phase of the walk will be discarded
+        before plotting. If False, nothing will be discarded and all points will
+        be plotted. If an integer, specifies the number of steps to be discarded
+        from the beginning of the walk.
+
+    """
+    # vector of booleans indicating accepted MCMC moves
+    accepts = mcmc.accepts.copy()
+    # mask off the annealing (burn-in) phase, or up to a user-specified step
+    if mask is True:
+        mask = mcmc.options.anneal_length
+    if mask is False:
+        mask = 0
+    accepts[0:mask] = 0
+    # grab position vectors and posterior values from accepted moves
+    positions = mcmc.positions[accepts]
+    posteriors = mcmc.posteriors[accepts]
+    # filter out the position elements we aren't plotting
+    positions = positions[:, (dim0, dim1)]
+    # build grid of points for sampling the posterior surface
+    pos_min = positions.min(0)
+    pos_max = positions.max(0)
+    p0_vals = numpy.linspace(pos_min[0], pos_max[0], gridsize)
+    p1_vals = numpy.linspace(pos_min[1], pos_max[1], gridsize)
+    p0_mesh, p1_mesh = numpy.meshgrid(p0_vals, p1_vals)
+    # calculate posterior value at all gridsize*gridsize points
+    posterior_mesh = numpy.empty_like(p0_mesh)
+    position_base = numpy.median(mcmc.positions, axis=0)
+    for i0, i1 in itertools.product(range(gridsize), range(gridsize)):
+        position = position_base.copy()
+        position[dim0] = p0_mesh[i0, i1]
+        position[dim1] = p1_mesh[i0, i1]
+        posterior_mesh[i0, i1] = mcmc.calculate_posterior(position)[0]
+    # rescale posterior mesh values to same scale as MCMC walk posteriors
+    pm_min = posterior_mesh.min()
+    pm_max = posterior_mesh.max()
+    #posterior_mesh = (posterior_mesh - pm_min) / (pm_max - pm_min)
+    pw_min = posteriors.min()
+    pw_max = posteriors.max()
+    #posterior_mesh = posterior_mesh * (pw_max - pw_min) + pw_min
+    # plot 3-D surface
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.plot_surface(p0_mesh, p1_mesh, posterior_mesh, rstride=1, cstride=1,
+                    cmap=matplotlib.cm.jet, linewidth=0, alpha=0.2)
+    ax.scatter(positions[:,0], positions[:,1], posteriors, c='k', marker=',', s=1)
+    plt.show()
+
+def sample(mcmc, n, colors):
+    plt.figure()
+    tspan = mcmc.options.tspan
+    ysamples = numpy.empty((n, len(tspan), len(mcmc.options.model.species)))
+    accept_positions = mcmc.positions[mcmc.accepts]
+    for i in range(n):
+        ysamples[i] = mcmc.simulate(accept_positions[-(i+1)])
+    norm_factor = ysamples.max(1).max(0)
+    ysamples /= norm_factor
+    for yout in ysamples:
+        for y, c in zip(yout.T, colors):
+            plt.plot(tspan, y, c=c, linewidth=1, alpha=.01)
+    true_params = [p.value for p in mcmc.options.estimate_params]
+    true_position = numpy.log10(true_params)
+    true_yout = mcmc.simulate(true_position) / norm_factor
+    plt.plot(tspan, true_yout, c='k', linewidth=2)
     plt.show()
