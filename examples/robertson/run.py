@@ -3,7 +3,11 @@ from pysb.examples.robertson import model
 from pysb.integrate import odesolve
 import numpy
 import matplotlib.pyplot as plt
+import sys
 
+scenario = 2
+if len(sys.argv) > 1:
+    scenario = int(sys.argv[1])
 
 seed = 2
 random = numpy.random.RandomState(seed)
