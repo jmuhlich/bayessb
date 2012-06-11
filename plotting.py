@@ -149,13 +149,6 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
         position[dim0] = p0_mesh[i0, i1]
         position[dim1] = p1_mesh[i0, i1]
         posterior_mesh[i0, i1] = mcmc.calculate_posterior(position)[0]
-    # rescale posterior mesh values to same scale as MCMC walk posteriors
-    pm_min = posterior_mesh.min()
-    pm_max = posterior_mesh.max()
-    #posterior_mesh = (posterior_mesh - pm_min) / (pm_max - pm_min)
-    pw_min = posteriors.min()
-    pw_max = posteriors.max()
-    #posterior_mesh = posterior_mesh * (pw_max - pw_min) + pw_min
     # plot 3-D surface
     fig = plt.figure()
     ax = fig.gca(projection='3d')
@@ -164,14 +157,18 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
     ax.scatter(positions[:,0], positions[:,1], posteriors, c='k', marker=',', s=1)
     plt.show()
 
-def sample(mcmc, n, colors):
+def sample(mcmc, n, colors, norm_factor=None):
     plt.figure()
     tspan = mcmc.options.tspan
-    ysamples = numpy.empty((n, len(tspan), len(mcmc.options.model.species)))
     accept_positions = mcmc.positions[mcmc.accepts]
-    for i in range(n):
+    if isinstance(n, int):
+        idx = range(n)
+    ysamples = numpy.empty((len(idx), len(tspan),
+                            len(mcmc.options.model.species)))
+    for i in idx:
         ysamples[i] = mcmc.simulate(accept_positions[-(i+1)])
-    norm_factor = ysamples.max(1).max(0)
+    if norm_factor is None:
+        norm_factor = ysamples.max(1).max(0)
     ysamples /= norm_factor
     for yout in ysamples:
         for y, c in zip(yout.T, colors):

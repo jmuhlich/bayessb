@@ -29,13 +29,18 @@ def likelihood(mcmc, position):
         ret = numpy.sum((yspecies / ysim_max - yout_norm) ** 2 / (2 * sigma ** 2))
     else:
         # fit to noisy data
-        ret = numpy.sum((ydata_norm - yout_norm) ** 2 / (2 * sigma ** 2))
+        if scenario == 5:
+            # fit to first two species
+            ret = numpy.sum((ydata_norm[:,0:2] - yout_norm[:,0:2]) ** 2 / (2 * sigma ** 2))
+        else:
+            # fit to all species
+            ret = numpy.sum((ydata_norm - yout_norm) ** 2 / (2 * sigma ** 2))
     return ret
 
 def prior(mcmc, position):
     if scenario == 1:
         est = [1e-2, 1e7, 1e4, 1, -5, -5]
-    elif scenario == 2 or scenario == 3:
+    elif scenario in (2, 3, 5):
         est = [1e-2, 1e7, 1e4]
     elif scenario == 4:
         est = [1e-2, 1e7]
@@ -92,7 +97,7 @@ if scenario == 1:
     # estimate all parameters from wild guesses (orders of magnitude off)
     opts.estimate_params = model.parameters
     opts.initial_values = [1e-4, 1e3, 1e6, 1e-1, 1e-1, 1e-1]
-elif scenario == 2 or scenario == 3:
+elif scenario in (2, 3, 5):
     # estimate rates only (not initial conditions) from wild guesses
     opts.estimate_params = [p for p in model.parameters if p.name.startswith('k') ]
     opts.initial_values = [1e-4, 1e3, 1e6]
