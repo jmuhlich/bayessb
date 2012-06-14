@@ -26,7 +26,7 @@ def step(mcmc):
             (mcmc.iter, mcmc.sig_value, mcmc.T, float(mcmc.acceptance)/(mcmc.iter+1), mcmc.accept_likelihood,
              mcmc.accept_prior, mcmc.accept_posterior)
 
-def scatter(mcmc, mask=True):
+def scatter(mcmc, mask=True, max_likelihood_est=None, marginal_mean=None):
     """
     Display a grid of scatter plots for each 2-D projection of an MCMC walk.
 
@@ -95,8 +95,19 @@ def scatter(mcmc, mask=True):
             ax.xaxis.set_major_locator(locators[x])
             if x == y:
                 # 1-D histograms along the diagonal
-                ax.hist(positions[:,x], bins=100, histtype='stepfilled',
+                #
+                # distribute 200 total bins across all histograms,
+                # proportionally by their width, such that the bin density looks
+                # consistent across the different histograms
+                bins = 200 * lim_ranges[x] / numpy.sum(lim_ranges)
+                ax.hist(positions[:,x], bins=bins, histtype='stepfilled',
                         color='salmon', ec='tomato')
+                if max_likelihood_est is not None:
+                    ax.vlines(max_likelihood_est[x], *ax.get_ylim(),
+                              color='red', linewidth=2)
+                if marginal_mean is not None:
+                    ax.vlines(marginal_mean[x], *ax.get_ylim(),
+                              color='green', linewidth=2)
                 ax.set_xlim(lims_bottom[x], lims_top[x])
                 ax.yaxis.set_major_locator(mticker.NullLocator())
             else:
@@ -126,7 +137,7 @@ def scatter(mcmc, mask=True):
     plt.show()
 
 
-def prediction(mcmc, n, species_idx, scale_factor, data, plot_samples=False):
+def prediction(mcmc, n, species_idx, scale_factor, data_std, plot_samples=False):
     plt.figure()
     positions = mcmc.positions[-n:]
     accepts = mcmc.accepts[-n:]
@@ -145,11 +156,13 @@ def prediction(mcmc, n, species_idx, scale_factor, data, plot_samples=False):
     std_interval = ystd[:, None] * [+1, -1]
     plt.plot(tspan, ymean[:, None] + std_interval * 0.842, 'g-.', linewidth=2)
     plt.plot(tspan, ymean[:, None] + std_interval * 1.645, 'k-.', linewidth=2)
+    plt.errorbar(tspan, ymean, yerr=data_std, fmt=None, ecolor='red')
+    plt.xlim(tspan[0] - 1, tspan[-1] + 1)
     plt.show()
 
 
 def main():
-    global mcmc
+    global mcmc, opts, ysim_max
 
     seed = 2
     random = numpy.random.RandomState(seed)
@@ -172,7 +185,7 @@ def main():
     opts.initial_values = [1e-4, 1e3, 1e6]
 
     opts.nsteps = 10000
-    opts.likelihood_fn = functools.partial(likelihood, data=ydata,
+    opts.likelihood_fn = functools.partial(likelihood, data=ydata_norm,
                                            scale_factor=ysim_max, sigma=sigma)
     opts.prior_fn = prior
     opts.step_fn = step
@@ -188,7 +201,7 @@ def main():
     # show scatter plot
     scatter(mcmc, opts.nsteps / 2)
     # show prediction for C trajectory, which was not fit to
-    prediction(mcmc, opts.nsteps / 2, 2, ysim_max[2])
+    prediction(mcmc, opts.nsteps / 2, 2, ysim_max[2], sigma, plot_samples=True)
 
 if __name__ == '__main__':
     main()
