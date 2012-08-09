@@ -348,5 +348,5 @@ class MCMCOpts(object):
         self.accept_rate_target = 0.3   # desired acceptance rate during annealing
         self.sigma_max          = 1     # max value for sigma (MCMC step size scaling factor)
         self.sigma_min          = 0.25  # min value for sigma
-        self.sigma_step         = 0.125 # multiplicative factor for sigma adjustments, to retain accept_rate_target
+        self.sigma_step         = 0.125 # increment for sigma adjustments, to retain accept_rate_target
         self.seed               = None  # seed for random number generator
