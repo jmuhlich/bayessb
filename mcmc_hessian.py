@@ -116,10 +116,10 @@ class MCMC(object):
         self.T_decay = -math.log10(1e-6) / self.options.anneal_length;
             
         self.ode_options = {};
-        if self.options.reltol is not None:
-            self.ode_options['reltol'] = self.options.reltol
-        if self.options.abstol is not None:
-            self.ode_options['abstol'] = self.options.abstol
+        if self.options.rtol is not None:
+            self.ode_options['rtol'] = self.options.rtol
+        if self.options.atol is not None:
+            self.ode_options['atol'] = self.options.atol
 
         self.random = np.random.RandomState(self.options.seed)
 
@@ -336,8 +336,8 @@ class MCMCOpts(object):
         self.use_hessian        = False   # whether to use the Hessian to guide the walk
         self.start_random       = False   #  whether to start from random rates and ICs
         self.boundary_option    = False # whether to enforce hard boundaries on the walk trajectory
-        self.reltol             = None    # relative tolerance for ODE solver
-        self.abstol             = None    # absolute tolerance for ODE solver (scalar or vector)
+        self.rtol               = None    # relative tolerance for ODE solver
+        self.atol               = None    # absolute tolerance for ODE solver (scalar or vector)
         self.norm_step_size     = 0.75  # MCMC step size
         self.hessian_period     = 25000 # number of MCMC steps between Hessian recalculations
         self.hessian_scale      = 0.085 # scaling factor used in generating Hessian-guided steps
