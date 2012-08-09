@@ -15,7 +15,7 @@ class MCMC(object):
         self.acceptance = None
         self.T_decay = None
         self.T = None
-        self.sig_value = 1
+        self.sig_value = 1.0
         self.iter = 0
         self.start_iter = 0
         self.ode_options = {}
@@ -173,14 +173,16 @@ class MCMC(object):
                     self.reject_move()
 
             # -------ADJUSTING SIGMA & TEMPERATURE (ANNEALING)--------
-            if self.iter < self.options.anneal_length \
-               and self.iter % self.options.sigma_adj_interval == 0:
-                if float(self.acceptance) / (self.iter + 1) < self.options.accept_rate_target:
+            if self.iter % self.options.sigma_adj_interval == 0:
+                accept_rate = float(self.acceptance) / (self.iter + 1)
+                if accept_rate < self.options.accept_rate_target:
                     if self.sig_value > self.options.sigma_min:
-                        self.sig_value -= self.options.sigma_step
-                    elif self.sig_value < self.options.sigma_max:
-                        self.sig_value += self.options.sigma_step
-                self.T = 1 + (self.options.T_init - 1) * math.e ** (-self.iter * self.T_decay);
+                        self.sig_value /= self.options.sigma_scale
+                else:
+                    if self.sig_value < self.options.sigma_max:
+                        self.sig_value *= self.options.sigma_scale
+            if self.iter < self.options.anneal_length:
+                self.T = 1 + (self.options.T_init - 1) * math.e ** (-self.iter * self.T_decay)
                 
             # log some interesting variables
             self.positions[self.iter,:] = self.test_position
@@ -343,7 +345,7 @@ class MCMCOpts(object):
         self.anneal_length      = None    # length of initial "burn-in" annealing period
         self.T_init             = 10    # initial temperature for annealing
         self.accept_rate_target = 0.3   # desired acceptance rate during annealing
-        self.sigma_max          = 1     # max value for sigma (MCMC step size scaling factor)
-        self.sigma_min          = 0.25  # min value for sigma
-        self.sigma_step         = 0.125 # increment for sigma adjustments, to retain accept_rate_target
+        self.sigma_max          = 1024  # max value for sigma (MCMC step size scaling factor)
+        self.sigma_min          = 0.125 # min value for sigma
+        self.sigma_scale        = 4     # multiplicative factor for sigma adjustments, to retain accept_rate_target
         self.seed               = None  # seed for random number generator
