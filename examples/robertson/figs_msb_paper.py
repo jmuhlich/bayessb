@@ -26,7 +26,8 @@ def step(mcmc):
             (mcmc.iter, mcmc.sig_value, mcmc.T, float(mcmc.acceptance)/(mcmc.iter+1), mcmc.accept_likelihood,
              mcmc.accept_prior, mcmc.accept_posterior)
 
-def scatter(mcmc, mask=True, max_likelihood_est=None, marginal_mean=None):
+def scatter(mcmc, mask=True, example_pos_r=None, example_pos_g=None,
+            show_model=False):
     """
     Display a grid of scatter plots for each 2-D projection of an MCMC walk.
 
@@ -102,14 +103,22 @@ def scatter(mcmc, mask=True, max_likelihood_est=None, marginal_mean=None):
                 bins = 200 * lim_ranges[x] / numpy.sum(lim_ranges)
                 ax.hist(positions[:,x], bins=bins, histtype='stepfilled',
                         color='salmon', ec='tomato')
-                if max_likelihood_est is not None:
-                    ax.vlines(max_likelihood_est[x], *ax.get_ylim(),
+                if example_pos_r is not None:
+                    ax.vlines(example_pos_r[x], *ax.get_ylim(),
                               color='red', linewidth=2)
-                if marginal_mean is not None:
-                    ax.vlines(marginal_mean[x], *ax.get_ylim(),
+                if example_pos_g is not None:
+                    ax.vlines(example_pos_g[x], *ax.get_ylim(),
                               color='green', linewidth=2)
+                arrow_scale = ax.get_ylim()[1] / lim_ranges[x]
+                arrow_len = arrow_scale * 0.1
+                arrow_head_l = arrow_len * 0.4
+                arrow_head_w = min(lim_ranges) * .1
+                ax.arrow(numpy.log10(px.value), arrow_len, 0, -arrow_len,
+                         head_length=arrow_head_l, head_width=arrow_head_w,
+                         ec='k', fc='k', length_includes_head=True)
                 ax.set_xlim(lims_bottom[x], lims_top[x])
-                ax.yaxis.set_major_locator(mticker.NullLocator())
+                #ax.yaxis.set_major_locator(mticker.NullLocator())
+                ax.yaxis.set_major_locator(mticker.LinearLocator())
             else:
                 # 2-D scatter plots off the diagonal
                 ax.plot(positions[:, x], positions[:, y], color='darkblue',
@@ -127,7 +136,7 @@ def scatter(mcmc, mask=True, max_likelihood_est=None, marginal_mean=None):
                 ax.set_xlabel(px.name, weight='black', size='large',
                               labelpad=10,)
             # tick labels along the right and top edge of the grid
-            if x == ndims - 1:
+            if True:#x == ndims - 1: # XXX
                 ax.tick_params('y', labelright=True)
             if y == ndims - 1:
                 ax.tick_params('x', labeltop=True)
@@ -158,6 +167,21 @@ def prediction(mcmc, n, species_idx, scale_factor, data_std, plot_samples=False)
     plt.plot(tspan, ymean[:, None] + std_interval * 1.645, 'k-.', linewidth=2)
     plt.errorbar(tspan, ymean, yerr=data_std, fmt=None, ecolor='red')
     plt.xlim(tspan[0] - 1, tspan[-1] + 1)
+    plt.show()
+
+
+def data(mcmc, data_norm, scale_factor, data_species_idxs):
+    plt.figure()
+    colors = ('r', 'g', 'b')
+    labels = ('A', 'B', 'C')
+    tspan = mcmc.options.tspan
+    true_pos = numpy.log10([p.value for p in mcmc.options.estimate_params])
+    true_norm = mcmc.simulate(true_pos) / scale_factor
+    for i, (rl, dl, c, l) in enumerate(zip(true_norm.T, data_norm.T,
+                                           colors, labels)):
+        plt.plot(tspan, rl, color=c, label=l)
+        if i in data_species_idxs:
+            plt.plot(tspan, dl, linestyle=':', marker='o', color=c, ms=4, mew=0)
     plt.show()
 
 
@@ -196,12 +220,23 @@ def main():
 
     mcmc.run()
 
-    estimate = numpy.median(mcmc.positions[mcmc.accepts], 0)
+    mixed_nsteps = opts.nsteps / 2
+    mixed_positions = mcmc.positions[-mixed_nsteps:]
+    mixed_accepts = mcmc.accepts[-mixed_nsteps:]
+    mixed_accept_positions = mixed_positions[mixed_accepts]
+    marginal_mean_pos = numpy.mean(mixed_accept_positions, 0)
+
+    # position is far from marginal mean, but posterior is good (determined by
+    # trial and error and some interactive plotting)
+    interesting_step = 8830
 
     # show scatter plot
-    scatter(mcmc, opts.nsteps / 2)
+    scatter(mcmc, opts.nsteps / 2, mcmc.positions[interesting_step],
+            marginal_mean_pos)
     # show prediction for C trajectory, which was not fit to
     prediction(mcmc, opts.nsteps / 2, 2, ysim_max[2], sigma, plot_samples=True)
+    #
+    data(mcmc, ydata_norm, ysim_max, [0, 1])
 
 if __name__ == '__main__':
     main()
