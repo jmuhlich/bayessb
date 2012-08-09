@@ -274,7 +274,7 @@ class MCMC(object):
     def calculate_posterior(self, position=None):
         prior = self.calculate_prior(position)
         likelihood = self.calculate_likelihood(position)
-        posterior = prior + likelihood
+        posterior = prior + likelihood * self.options.thermo_temp
         return posterior, prior, likelihood
 
     def calculate_hessian(self, position=None):
@@ -349,4 +349,5 @@ class MCMCOpts(object):
         self.sigma_max          = 1     # max value for sigma (MCMC step size scaling factor)
         self.sigma_min          = 0.25  # min value for sigma
         self.sigma_step         = 0.125 # increment for sigma adjustments, to retain accept_rate_target
+        self.thermo_temp        = 1     # temperature for thermodynamic integration support
         self.seed               = None  # seed for random number generator
