@@ -221,7 +221,7 @@ class MCMC(object):
         if observables:
             yout = ysim
         else:
-            ysim_array = ysim.view().reshape(len(self.options.tspan), len(ysim.dtype))
+            ysim_array = ysim.view(float).reshape(len(ysim), -1)
             yout = ysim_array[:, :len(self.options.model.species)]
         return yout
 
