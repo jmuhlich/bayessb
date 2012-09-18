@@ -20,6 +20,7 @@ class MCMC(object):
         self.start_iter = 0
         self.ode_options = {}
         self.random = None  # random number generator
+        self.solver = None
 
         # likelihood, prior, and posterior are also all log-transformed
         self.initial_likelihood = None
@@ -106,6 +107,10 @@ class MCMC(object):
         self.initial_position = np.log10(self.initial_values)
         self.position = self.initial_position
             
+        # create solver so we can calculate the posterior
+        self.solver = pysb.integrate.Solver(self.options.model,
+                                            self.options.tspan)
+
         self.initial_posterior, self.initial_prior, self.initial_likelihood = \
             self.calculate_posterior(self.initial_position)
 
@@ -215,15 +220,11 @@ class MCMC(object):
     def simulate(self, position=None, observables=False):
         if position is None:
             position = self.position
-        ysim = pysb.integrate.odesolve(self.options.model, self.options.tspan,
-                                       self.cur_params(position),
-                                       **self.ode_options)
+        self.solver.run(self.cur_params(position))
         if observables:
-            yout = ysim
+            return self.solver.yobs
         else:
-            ysim_array = ysim.view(float).reshape(len(ysim), -1)
-            yout = ysim_array[:, :len(self.options.model.species)]
-        return yout
+            return self.solver.y
 
     def cur_params(self, position=None):
         """Return the parameter values corresponding to a position in phase
