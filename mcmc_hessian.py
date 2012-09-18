@@ -155,10 +155,9 @@ class MCMC(object):
             if self.options.use_hessian and self.iter % self.options.hessian_period == 0:
                 try:
                     self.hessian = self.calculate_hessian()
-                    print 'updating hessian (iter=%d)' % self.iter
                 except Exception as e:
                     # don't update if new hessian failed to calculate properly
-                    print 'keeping previous hessian (iter=%d)' % self.iter
+                    pass
 
             # choose test position and calculate posterior there
             self.test_position = self.generate_new_position()
