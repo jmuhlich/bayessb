@@ -51,6 +51,17 @@ class MCMC(object):
         self.total_times = None
         self.hessians = None
     
+    def __getstate__(self):
+        # clear solver since it causes problems with pickling
+        state = self.__dict__.copy()
+        del state['solver']
+        return state
+
+    def __setstate__(self, state):
+        # restore the 'model' weakrefs on all components
+        self.__dict__.update(state)
+        self.init_solver()
+
     def run(self):
         self.initialize()
         self.estimate()
@@ -108,8 +119,7 @@ class MCMC(object):
         self.position = self.initial_position
             
         # create solver so we can calculate the posterior
-        self.solver = pysb.integrate.Solver(self.options.model,
-                                            self.options.tspan)
+        self.init_solver()
 
         self.initial_posterior, self.initial_prior, self.initial_likelihood = \
             self.calculate_posterior(self.initial_position)
@@ -144,6 +154,11 @@ class MCMC(object):
         self.total_times = np.empty(self.options.nsteps)
         # FIXME only store distinct hessians -- it doesn't change on every iter
         self.hessians = np.empty((self.options.nsteps, self.num_estimate, self.num_estimate))
+
+    def init_solver(self):
+        """Initialize solver from model and tspan."""
+        self.solver = pysb.integrate.Solver(self.options.model,
+                                            self.options.tspan)
 
     def estimate(self):
         # this is the heart of the algorithm
