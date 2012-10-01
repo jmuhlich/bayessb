@@ -143,7 +143,6 @@ def scatter(mcmc, mask=True, example_pos_r=None, example_pos_g=None,
             # move to next figure in the gridspec
             fignum += 1
     # TODO: would axis('scaled') force the aspect ratio we want?
-    plt.show()
 
 
 def prediction(mcmc, n, species_idx, scale_factor, data_std, plot_samples=False):
@@ -167,7 +166,6 @@ def prediction(mcmc, n, species_idx, scale_factor, data_std, plot_samples=False)
     plt.plot(tspan, ymean[:, None] + std_interval * 1.645, 'k-.', linewidth=2)
     plt.errorbar(tspan, ymean, yerr=data_std, fmt=None, ecolor='red')
     plt.xlim(tspan[0] - 1, tspan[-1] + 1)
-    plt.show()
 
 
 def data(mcmc, data_norm, scale_factor, data_species_idxs):
@@ -182,12 +180,9 @@ def data(mcmc, data_norm, scale_factor, data_species_idxs):
         plt.plot(tspan, rl, color=c, label=l)
         if i in data_species_idxs:
             plt.plot(tspan, dl, linestyle=':', marker='o', color=c, ms=4, mew=0)
-    plt.show()
 
 
 def main():
-    global mcmc, opts, ysim_max
-
     seed = 2
     random = numpy.random.RandomState(seed)
     sigma = 0.1;
@@ -229,13 +224,18 @@ def main():
     # trial and error and some interactive plotting)
     interesting_step = 8830
 
+    print "\nGenerating figures..."
     # show scatter plot
     scatter(mcmc, opts.nsteps / 2, mcmc.positions[interesting_step],
             marginal_mean_pos)
     # show prediction for C trajectory, which was not fit to
     prediction(mcmc, opts.nsteps / 2, 2, ysim_max[2], sigma, plot_samples=True)
-    #
+    plt.title("Prediction for C")
+    # show "true" trajectories and noisy data
     data(mcmc, ydata_norm, ysim_max, [0, 1])
+    plt.title("True trajectories and noisy data")
+    # show all plots at once
+    plt.show()
 
 if __name__ == '__main__':
     main()
