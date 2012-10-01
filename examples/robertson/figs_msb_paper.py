@@ -1,6 +1,6 @@
 import biomc
 from pysb.examples.robertson import model
-from pysb.integrate import odesolve
+import pysb.integrate
 import numpy
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mgridspec
@@ -193,11 +193,10 @@ def main():
     sigma = 0.1;
     ntimes = 20;
     tspan = numpy.linspace(0, 40, ntimes);
-    ysim = odesolve(model, tspan)
-    ysim_array = ysim.view().reshape(len(tspan), len(ysim.dtype))
-    yspecies = ysim_array[:, :len(model.species)]
-    ydata = yspecies * (random.randn(*yspecies.shape) * sigma + 1);
-    ysim_max = yspecies.max(0)
+    solver = pysb.integrate.Solver(model, tspan)
+    solver.run()
+    ydata = solver.y * (random.randn(*solver.y.shape) * sigma + 1);
+    ysim_max = solver.y.max(0)
     ydata_norm = ydata / ysim_max
 
     opts = biomc.MCMCOpts()
