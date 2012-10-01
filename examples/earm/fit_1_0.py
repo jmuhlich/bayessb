@@ -1,4 +1,4 @@
-import mcmc_hessian
+import biomc
 import pysb.integrate
 import numpy
 import matplotlib.pyplot as plt
@@ -43,7 +43,7 @@ def step(mcmc):
 
 scenario = 3
 
-opts = mcmc_hessian.MCMCOpts()
+opts = biomc.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
 
@@ -66,7 +66,7 @@ opts.step_fn = step
 opts.use_hessian = True
 opts.hessian_period = opts.nsteps / 3
 opts.seed = seed
-mcmc = mcmc_hessian.MCMC(opts)
+mcmc = biomc.MCMC(opts)
 
 mcmc.run()
 

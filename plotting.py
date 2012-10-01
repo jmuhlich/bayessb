@@ -14,7 +14,7 @@ def scatter(mcmc, mask=True):
 
     Parameters
     ----------
-    mcmc : mcmc_hessian.MCMC
+    mcmc : biomc.MCMC
         The MCMC object to display.
     mask : bool/int, optional
         If True (default) the annealing phase of the walk will be discarded
@@ -112,7 +112,7 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
 
     Parameters
     ----------
-    mcmc : mcmc_hessian.MCMC
+    mcmc : biomc.MCMC
         The MCMC object to display.
     dim0, dim1 : indices of parameters to display
     mask : bool/int, optional
