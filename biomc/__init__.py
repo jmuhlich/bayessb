@@ -62,7 +62,7 @@ class MCMC(object):
         return state
 
     def __setstate__(self, state):
-        # restore the 'model' weakrefs on all components
+        # re-init the solver which we didn't pickle
         self.__dict__.update(state)
         self.init_solver()
 
