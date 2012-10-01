@@ -2,6 +2,10 @@ import numpy as np
 import math
 import pysb.integrate
 
+
+__all__ = ['MCMC', 'MCMCOpts']
+
+
 class MCMC(object):
 
     def __init__(self, options):

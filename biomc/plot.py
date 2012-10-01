@@ -8,6 +8,10 @@ import math
 import itertools
 import pysb.integrate
 
+
+__all__ = ['scatter', 'surf', 'sample']
+
+
 def scatter(mcmc, mask=True):
     """
     Display a grid of scatter plots for each 2-D projection of an MCMC walk.
