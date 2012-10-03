@@ -346,7 +346,7 @@ class MCMCOpts(object):
 
     def __init__(self):
         self.rhs_fn             = None    # model ODE right-hand side fn (t,y,params)
-        self.estimate_params    = None    # boolean array indicating which parameters to estimate
+        self.estimate_params    = None    # list of parameters to estimate
         self.initial_values     = None    # starting values for parameters to estimate
         self.tspan              = None    # start/end times for model integration, or list of times
         self.step_fn            = None    # user callback, called on every MCMC iteration
