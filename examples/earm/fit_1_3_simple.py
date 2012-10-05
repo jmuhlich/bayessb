@@ -119,9 +119,14 @@ parp_initial = [p.value for p in model.parameters if p.name == 'PARP_0'][0]
 ### XXX temp
 for i, p in enumerate(model.parameters):
     if p.name == 'kf31':
+        # original value of 1e-3 gives a much better initial fit, but starting
+        # from 1e-2 helps converge to a better fit faster.
         model.parameters[i] = p._replace(value=1e-2)
-    #if p.name == 'kdeg_CPARP':
-    #    model.parameters[i] = p._replace(value=0)
+    if False and p.name == 'kdeg_CPARP':
+        # we process the post-momp signal to force a flat plateau, but CPARP
+        # degradation makes CPARP slope down in the simulation. if we disable
+        # the degradation then the simulated trajectory is much flatter.
+        model.parameters[i] = p._replace(value=0)
 
 prior_mean, prior_var = calculate_prior_stats()
 
@@ -138,6 +143,7 @@ exp_ecrp[:plateau_idx] /= exp_ecrp[plateau_idx]
 # clamp the latter portion directly to 1
 exp_ecrp[plateau_idx:] = 1.0
 
+
 # set up a vector of variance values for the ecrp signal
 exp_ecrp_var = np.empty_like(tspan)
 # start with a single value for the variance at all time points
@@ -148,7 +154,7 @@ exp_ecrp_var[momp_start_idx:momp_end_idx+1] = 0.1179
 opts = biomc.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
-opts.nsteps = 100
+opts.nsteps = 200
 opts.likelihood_fn = likelihood
 opts.prior_fn = prior
 opts.step_fn = step
@@ -162,9 +168,9 @@ mcmc.run()
 
 _, yobs_initial = model.simulate(tspan, [p.value for p in model.parameters])
 _, yobs_final = model.simulate(tspan, mcmc.cur_params(mcmc.position))
-plt.plot(exp_ecrp, 'o', mec='red', mfc='none')
-plt.plot(yobs_initial['CPARP_total']/parp_initial, 'b');
-plt.plot(yobs_final['CPARP_total']/parp_initial, 'k');
+plt.plot(tspan, exp_ecrp, 'o', mec='red', mfc='none')
+plt.plot(tspan, yobs_initial['CPARP_total']/parp_initial, 'b');
+plt.plot(tspan, yobs_final['CPARP_total']/parp_initial, 'k');
 plt.legend(('data', 'original model', 'fitted model'), loc='lower right')
 plt.show()
 
