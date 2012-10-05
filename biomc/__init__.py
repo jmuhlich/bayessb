@@ -1,6 +1,13 @@
 import numpy as np
 import math
-import pysb.integrate
+
+_use_pysb = False
+try:
+    import pysb.core
+    import pysb.integrate
+    _use_pysb = True
+except ImporError:
+    pass
 
 
 __all__ = ['MCMC', 'MCMCOpts']
@@ -74,10 +81,10 @@ class MCMC(object):
         """Validates options and applies some defaults, and returns the
         resulting options dict."""
 
-        if not options.model:
-            raise Exception("model must be a PySB model")
+        if options.model is None:
+            raise Exception("model not defined")
 
-        if not options.estimate_params or not len(options.estimate_params):
+        if options.estimate_params is None or not len(options.estimate_params):
             raise Exception("estimate_params must contain a list of parameters")
             
         # clamp hessian_period to actual number of steps
@@ -161,8 +168,9 @@ class MCMC(object):
 
     def init_solver(self):
         """Initialize solver from model and tspan."""
-        self.solver = pysb.integrate.Solver(self.options.model,
-                                            self.options.tspan)
+        if _use_pysb and isinstance(self.options.model, pysb.core.Model):
+            self.solver = pysb.integrate.Solver(self.options.model,
+                                                self.options.tspan)
 
     def estimate(self):
         # this is the heart of the algorithm
@@ -316,7 +324,7 @@ class MCMC(object):
             b = self.calculate_posterior(position_b)[0]
             hessian[i,i] = (f - 2*c + b) / d ** 2
         # iterate over elements above diagonal
-        for i in range(self.num_estimate-1):
+        for i in range(self.num_estimate-1):         # FIXME should probably range(1+...)
             for j in range(i, self.num_estimate):
                 position_ff = position.copy()
                 position_fb = position.copy()
