@@ -8,8 +8,6 @@ from pysb.util import get_param_num
 
 from earm_1_3_standalone import Model
 
-# TODO: make this work like RUN_ME.m
-# http://www.cdpcenter.org/wordpress/wp-content/uploads/2011/08/RUN_ME.m
 
 def likelihood(mcmc, position):
     param_values = mcmc.cur_params(position)
@@ -23,8 +21,8 @@ def prior(mcmc, position):
 def step(mcmc):
     if mcmc.iter % 20 == 0:
         print 'iter=%-5d  sigma=%-.3f  T=%-.3f  acc=%-.3f, lkl=%g  prior=%g  post=%g' % \
-            (mcmc.iter, mcmc.sig_value, mcmc.T, mcmc.acceptance/(mcmc.iter+1), mcmc.accept_likelihood,
-             mcmc.accept_prior, mcmc.accept_posterior)
+            (mcmc.iter, mcmc.sig_value, mcmc.T, float(mcmc.acceptance)/(mcmc.iter+1),
+             mcmc.accept_likelihood, mcmc.accept_prior, mcmc.accept_posterior)
 
 def filter_params(prefix):
     """Return a list of model parameters whose names begin with a prefix"""
@@ -151,6 +149,7 @@ exp_ecrp_var[:] = 0.0272
 # use a higher value for the switching window to reflect less certainty there
 exp_ecrp_var[momp_start_idx:momp_end_idx+1] = 0.1179
 
+# set up our MCMC options
 opts = biomc.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
@@ -163,9 +162,20 @@ opts.estimate_params = estimate_params
 opts.seed = 1  
 
 
+# run the chain
 mcmc = biomc.MCMC(opts)
 mcmc.run()
 
+# print some information about the maximum-likelihood estimate parameter set
+print
+print '%-10s %-12s %-12s %s' % ('parameter', 'original', 'fitted', 'log10(fit/orig)')
+fitted_values = mcmc.cur_params()[mcmc.estimate_idx]
+for param, new_value in zip(opts.estimate_params, fitted_values):
+    change = np.log10(new_value / param.value)
+    values = (param.name, param.value, new_value, change)
+    print '%-10s %-12.2g %-12.2g %-+6.2f' % values
+
+# plot data and simulated cleaved PARP trajectories before and after the fit
 _, yobs_initial = model.simulate(tspan, [p.value for p in model.parameters])
 _, yobs_final = model.simulate(tspan, mcmc.cur_params(mcmc.position))
 plt.plot(tspan, exp_ecrp, 'o', mec='red', mfc='none')
@@ -173,30 +183,3 @@ plt.plot(tspan, yobs_initial['CPARP_total']/parp_initial, 'b');
 plt.plot(tspan, yobs_final['CPARP_total']/parp_initial, 'k');
 plt.legend(('data', 'original model', 'fitted model'), loc='lower right')
 plt.show()
-
-"""
-
-print
-print '%-10s %-12s %-12s %-12s' % ('param', 'actual', 'fitted', '% error')
-fitted_values = mcmc.cur_params()[mcmc.estimate_idx]
-for param, new_value in zip(opts.estimate_params, fitted_values):
-    error = abs(1 - param.value / new_value) * 100
-    values = (param.name, param.value, new_value, error)
-    print '%-10s %-12g %-12g %-12g' % values
-
-colors = ('r', 'g', 'b')
-yreal = pysb.integrate.odesolve(model, tspan)
-yreal_array = extract_records(yreal, obs_names)
-ysim_array = extract_records(mcmc.simulate(observables=True), obs_names)
-real_lines = plt.plot(tspan, normalize(yreal_array))
-data_lines = plt.plot(tspan, ydata_norm)
-sim_lines = plt.plot(tspan, normalize(ysim_array))
-for rl, dl, sl, c in zip(real_lines, data_lines, sim_lines, colors):
-    rl.set_color(c)
-    dl.set_color(c)
-    sl.set_color(c)
-    rl.set_linestyle('--')
-    dl.set_linestyle(':')
-    dl.set_marker('x')
-plt.show()
-"""
