@@ -1,10 +1,7 @@
 import biomc
-import pysb.integrate
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from pysb.core import ComponentSet
-from pysb.util import get_param_num
 
 from earm_1_3_standalone import Model
 
