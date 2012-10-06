@@ -6,7 +6,7 @@ try:
     import pysb.core
     import pysb.integrate
     _use_pysb = True
-except ImporError:
+except ImportError:
     pass
 
 
