@@ -162,6 +162,29 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
     plt.show()
 
 def sample(mcmc, n, colors, norm_factor=None):
+    """
+    Display model trajectories of parameter sets sampled from the MCMC walk.
+
+    Parameters
+    ----------
+    mcmc : biomc.MCMC
+        MCMC object to sample from.
+    n : int
+        Number of samples.
+    norm_factor : vector-like, optional
+        Vector of scaling factors, the same length as the number of species in
+        the model. Each simulated trajectory will be divided by the respective
+        value before plotting. If omitted, trajectories will be rescaled to the
+        maximum value of each trajectory across all samples and all time points.
+
+    Notes
+    -----
+    This is not currently useful for models with many species. It should
+    probably plot observables instead (and allow selection of specific ones).
+
+    """
+    # FIXME plot observables instead, and allow a list of observables or
+    # observable names as an argument.
     plt.figure()
     tspan = mcmc.options.tspan
     accept_positions = mcmc.positions[mcmc.accepts]
