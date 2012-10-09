@@ -36,8 +36,8 @@ class Model(object):
     def __init__(self):
         self.y = None
         self.yobs = None
-        self.integrator = scipy.integrate.ode(self.ode_rhs)
-        self.integrator.set_integrator('vode', method='bdf', with_jacobian=True)
+        self.integrator = scipy.integrate.ode(self.ode_rhs, )
+        self.integrator.set_integrator('vode', method='bdf', with_jacobian=True, rtol=1e-3, atol=1e-6)
         self.y0 = numpy.empty(60)
         self.ydot = numpy.empty(60)
         self.sim_param_values = numpy.empty(206)
