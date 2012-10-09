@@ -1,3 +1,6 @@
+# Fits EARM 1.3 (Gaudet et. al 2012) against a single-cell executioner caspase
+# reporter (EC-RP). The model is
+
 import biomc
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,15 +10,18 @@ from earm_1_3_standalone import Model
 
 
 def likelihood(mcmc, position):
+    """TODO"""
     param_values = mcmc.cur_params(position)
     _, yobs = model.simulate(mcmc.options.tspan, param_values, view=True)
     cparp_sim_norm = yobs['CPARP_total'] / parp_initial
     return np.sum((exp_ecrp - cparp_sim_norm) ** 2 / (2 * exp_ecrp_var ** 2))
 
 def prior(mcmc, position):
+    """TODO ...mean and variance from calculate_prior_stats"""
     return np.sum((position - prior_mean) ** 2 / ( 2 * prior_var))
 
 def step(mcmc):
+    """Print out some statistics every 20 steps"""
     if mcmc.iter % 20 == 0:
         print 'iter=%-5d  sigma=%-.3f  T=%-.3f  acc=%-.3f, lkl=%g  prior=%g  post=%g' % \
             (mcmc.iter, mcmc.sig_value, mcmc.T, float(mcmc.acceptance)/(mcmc.iter+1),
@@ -53,6 +59,8 @@ def calculate_prior_stats():
     mean = np.empty(len(estimate_params))
     var = np.empty_like(mean)
     var.fill(2.0)
+    # note: estimate_params must be sorted here, in the same order that biomc
+    # maintains the position vector
     for i, p in enumerate(estimate_params):
         if p in kf_fast:
             mean[i] = mean_kf_fast
@@ -68,6 +76,7 @@ def calculate_prior_stats():
     return mean, var
     
 
+# instantiate an instance of our model
 model = Model()
 
 # EC-RP trajectory (experimental data, arbitrary units)
@@ -105,10 +114,12 @@ momp_start_idx = 75
 momp_end_idx = 86
 # data was collected at evenly-spaced points over 12 hours
 tspan = np.linspace(0, 12 * 3600, len(exp_ecrp))
+# select the forward/reverse/catalytic parameters for estimation
 kf = filter_params('kf')
 kr = filter_params('kr')
 kc = filter_params('kc')
 estimate_params = sort_params(kf + kr + kc)
+# grab the initial amount of parp, for normalizing CPARP trajectories
 parp_initial = [p.value for p in model.parameters if p.name == 'PARP_0'][0]
 
 ### XXX temp
