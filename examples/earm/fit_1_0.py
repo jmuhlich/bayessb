@@ -71,12 +71,12 @@ mcmc = biomc.MCMC(opts)
 mcmc.run()
 
 print
-print '%-10s %-12s %-12s %-12s' % ('param', 'actual', 'fitted', '% error')
+print '%-10s %-12s %-12s %s' % ('parameter', 'actual', 'fitted', 'log10(fit/actual)')
 fitted_values = mcmc.cur_params()[mcmc.estimate_idx]
 for param, new_value in zip(opts.estimate_params, fitted_values):
-    error = abs(1 - param.value / new_value) * 100
-    values = (param.name, param.value, new_value, error)
-    print '%-10s %-12g %-12g %-12g' % values
+    change = np.log10(new_value / param.value)
+    values = (param.name, param.value, new_value, change)
+    print '%-10s %-12.2g %-12.2g %-+6.2f' % values
 
 colors = ('r', 'g', 'b')
 yreal = pysb.integrate.odesolve(model, tspan)
