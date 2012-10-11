@@ -15,6 +15,100 @@ __all__ = ['MCMC', 'MCMCOpts']
 
 class MCMC(object):
 
+    """An interface for Markov-Chain Monte Carlo parameter estimation.
+
+    Parameters
+    ----------
+    options : biomc.MCMCOpts
+        Option set -- defines the problem and sets some parameters to control
+        the MCMC algorithm.
+
+    Attributes
+    ----------
+    options : biomc.MCMCOpts
+        Validated copy of options passed to constructor.
+    num_estimate : int
+        Number of parameters to estimate.
+    estimate_idx : list of int
+        Indices of parameters to estimate in the model's full parameter list.
+    initial_values : list of float
+        Starting values for parameters to estimate, taken from the parameters'
+        nominal values in the model or explicitly specified in `options`.
+    initial_position : list of float
+        Starting position of MCMC walk in parameter space (log10 of
+        `initial_values`).
+    position : list of float
+        Current position of MCMC walk in parameter space, i.e. the most recently
+        accepted move).
+    test_position : list of float
+        Proposed MCMC move.
+    acceptance : int
+        Number of accepted moves.
+    T : float
+        Current value of the simulated annealing temperature.
+    T_decay : float
+        Constant for exponential decay of `T`, automatically calculated such
+        that T will decay from `options.T_init` down to 1 over the first
+        `options.anneal_length` steps.
+    sig_value : float
+        Current value of 'Sigma', the scaling factor for the proposal
+        distribution. The MCMC algorithm dynamically tunes this to maintain the
+        acceptance rate specified in `options.accept_rate_target`.
+    iter : int
+        Current MCMC step number.
+    start_iter : int
+        Starting MCMC step number.
+    ode_options : dict
+        Options for the ODE integrator, currently just 'rtol' for relative
+        tolerance and 'atol' for absolute tolerance.
+    random : numpy.random.RandomState
+        Random number generator. Seeded with `options.seed` for reproducible
+        runs.
+    solver : pysb.integrate.Solver
+        ODE solver.
+    initial_prior : float
+        Starting prior value, i.e. the value at `initial_position`.
+    initial_likelihood : float
+        Starting likelihood value, i.e. the value at `initial_position`.
+    initial_posterior : float
+        Starting posterior value, i.e. the value at `initial_position`.
+    accept_prior : float
+        Current prior value, i.e the value at `position`.
+    accept_likelihood : float
+        Current likelihood value, i.e the value at `position`.
+    accept_posterior : float
+        Current posterior value, i.e the value at `position`.
+    test_prior : float
+        Prior value at `test_position`.
+    test_likelihood : float
+        Likelihood value at `test_position`.
+    test_posterior : float
+        Posterior value at `test_position`.
+    hessian : numpy.ndarray of float
+        Current hessian of the posterior landscape. Size is
+        `num_estimate`x`num_estimate`.
+    positions : numpy.ndarray of float
+        Trace of all proposed moves. Size is `num_estimate`x`nsteps`.
+    priors, likelihoods, posteriors : numpy.ndarray of float
+        Trace of all priors, likelihoods, and posteriors corresponding to
+        `positions`. Length is `nsteps`.
+    alphas, sigmas, delta_posteriors, ts : numpy.ndarray of float
+        Trace of various MCMC parameters and calculated values. Length is
+        `nsteps`.
+    accepts, rejects : numpy.ndarray of bool
+        Trace of whether each propsed move was accepted or rejected. Length is
+        `nsteps`.
+    hessians : numpy.ndarray of float
+        Trace of all hessians. Size is `num_estimate`x`num_estimate`x`nsteps`.
+        NOTE: This currently wastes a LOT of space, as it stores a hessian at
+        every step but the hessian only changes every `options.hessian_period`
+        steps. It will be fixed soon.    
+
+    Notes
+    -----
+
+    """
+
     def __init__(self, options):
         self.options = self.validate(options)
         self.initial_values = None
@@ -44,8 +138,6 @@ class MCMC(object):
         self.test_prior = None
         self.test_posterior = None
 
-        self.delta_lkls = None
-        self.delta_prior = None
         self.hessian = None
 
         # "logs" for some values we'd like to keep track of across iterations
@@ -59,7 +151,6 @@ class MCMC(object):
         self.ts = None
         self.accepts = None
         self.rejects = None
-        self.total_times = None
         self.hessians = None
     
     def __getstate__(self):
@@ -74,12 +165,15 @@ class MCMC(object):
         self.init_solver()
 
     def run(self):
+        """Initialize internal state and runs the parameter estimation."""
         self.initialize()
         self.estimate()
         
     def validate(self, options):
-        """Validates options and applies some defaults, and returns the
-        resulting options dict."""
+        """Return a validated copy of options with defaults applied."""
+        # FIXME should this live in MCMCOpts?
+
+        options = options.copy()
 
         if options.model is None:
             raise Exception("model not defined")
@@ -113,6 +207,8 @@ class MCMC(object):
         return options
         
     def initialize(self):
+        """Initialize internal state from the option set."""
+
         # create list of starting values from initial parameter values given by
         # user. vector only contains values which are to be estimated!
         self.num_estimate = len(self.options.estimate_params)
@@ -129,6 +225,13 @@ class MCMC(object):
         self.initial_position = np.log10(self.initial_values)
         self.position = self.initial_position
             
+        # need to do this before init_solver
+        self.ode_options = {};
+        if self.options.rtol is not None:
+            self.ode_options['rtol'] = self.options.rtol
+        if self.options.atol is not None:
+            self.ode_options['atol'] = self.options.atol
+
         # create solver so we can calculate the posterior
         self.init_solver()
 
@@ -141,12 +244,6 @@ class MCMC(object):
 
         self.T_decay = -math.log10(1e-6) / self.options.anneal_length;
             
-        self.ode_options = {};
-        if self.options.rtol is not None:
-            self.ode_options['rtol'] = self.options.rtol
-        if self.options.atol is not None:
-            self.ode_options['atol'] = self.options.atol
-
         self.random = np.random.RandomState(self.options.seed)
 
         self.start_iter = 0;
@@ -162,7 +259,6 @@ class MCMC(object):
         self.sigmas = np.empty(self.options.nsteps)
         self.accepts = np.zeros(self.options.nsteps, dtype=bool)
         self.rejects = np.zeros(self.options.nsteps, dtype=bool)
-        self.total_times = np.empty(self.options.nsteps)
         # FIXME only store distinct hessians -- it doesn't change on every iter
         self.hessians = np.empty((self.options.nsteps, self.num_estimate, self.num_estimate))
 
@@ -170,10 +266,11 @@ class MCMC(object):
         """Initialize solver from model and tspan."""
         if _use_pysb and isinstance(self.options.model, pysb.core.Model):
             self.solver = pysb.integrate.Solver(self.options.model,
-                                                self.options.tspan)
+                                                self.options.tspan,
+                                                **self.ode_options)
 
     def estimate(self):
-        # this is the heart of the algorithm
+        """Execute the MCMC parameter estimation algorithm."""
 
         self.iter = self.start_iter;
         while self.iter < self.options.nsteps:
@@ -233,6 +330,7 @@ class MCMC(object):
             self.iter += 1
         
     def accept_move(self):
+        """Accept the current proposed move."""
         self.accept_prior = self.test_prior
         self.accept_likelihood = self.test_likelihood
         self.accept_posterior = self.test_posterior
@@ -241,9 +339,23 @@ class MCMC(object):
         self.accepts[self.iter] = 1
 
     def reject_move(self):
+        """Reject the current proposed move."""
         self.rejects[self.iter] = 1;
 
     def simulate(self, position=None, observables=False):
+        """Simulate the model.
+
+        Parameters
+        ----------
+        position : list of float, optional
+            log10 of the values of the parameters being estimated. (See
+            the `cur_params` method for details)
+        observables : boolean, optional
+            If true, return a record array containing the trajectories of the
+            model's observables. If false, return a float array of all species
+            trajectories. Defaults to false.
+
+        """
         if position is None:
             position = self.position
         self.solver.run(self.cur_params(position))
@@ -253,8 +365,23 @@ class MCMC(object):
             return self.solver.y
 
     def cur_params(self, position=None):
-        """Return the parameter values corresponding to a position in phase
-        space."""
+        """Return a list of the values of all model parameters.
+
+        For a given set of values for the parameters to be estimated, this
+        method returns an array containing the actual (not log-transformed)
+        values of all model parameters, not just those to be estimated, in the
+        same order as specified in the model. This is helpful when simulating
+        the model at a given position in parameter space.
+
+        Parameters
+        ----------
+        position : list of float, optional
+            log10 of the values of the parameters being estimated. If omitted,
+            `self.position` (the most recent accepted MCMC move) will be
+            used. The model's nominal values will be used for all parameters
+            *not* being estimated, regardless.
+
+        """
         if position is None:
             position = self.position
         # start with the original values
@@ -265,26 +392,42 @@ class MCMC(object):
         return values
 
     def generate_new_position(self):
-        """Sample from num_estimate independent gaussians and normalize the
-        resulting vector to obtain a vector sampled uniformly on the unit
-        hypersphere. Then scale by norm_step_size and ig_value, and add the
-        resulting vector to our current position."""
+        """Generate a sample from the proposal distribution."""
+        # sample from num_estimate independent gaussians
         step = self.random.randn(self.num_estimate)
         if not self.options.use_hessian \
                 or self.iter < self.options.hessian_period \
                 or self.hessian is None:
+            # normalize to obtain a vector sampled uniformly on the unit
+            # hypersphere
             step /= math.sqrt(step.dot(step))
+            # scale by norm_step_size and sig_value.
             step *= self.options.norm_step_size * self.sig_value
         else:
-            # FIXME: make the 0.25 a user option
-            # FIXME make 0.0855 (hess_ss) a user option
+            # FIXME make the 0.25 a user option
+            # FIXME call eig() only when hessian changes and store results
             eig_val, eig_vec = np.linalg.eig(self.hessian)
             # clamp eigenvalues to a lower bound of 0.25
             adj_eig_val = np.maximum(abs(eig_val), 0.25)
-            step = (eig_vec / adj_eig_val ** 0.5).dot(step) * 0.085
+            # transform into eigenspace, with length scaled by the inverse
+            # square root of the eigenvalues. length is furthermore scaled down
+            # by a constant factor.
+            step = (eig_vec / adj_eig_val ** 0.5).dot(step) \
+                * self.options.hessian_scale
+        # the proposed position is our most recent accepted position plus the
+        # step we just calculated
         return self.position + step
 
     def calculate_prior(self, position=None):
+        """Return the prior for a position in parameter space.
+
+        If `options.prior_fn` is None, return 0 (i.e. a flat prior).
+
+        position : list of float, optional
+            log10 of the values of the parameters being estimated. (See
+            the `cur_params` method for details)
+
+        """
         if position is None:
             position = self.position
         if self.options.prior_fn:
@@ -294,21 +437,52 @@ class MCMC(object):
             return 0
 
     def calculate_likelihood(self, position=None):
+        """Return the likelihood for a position in parameter space.
+
+        position : list of float, optional
+            log10 of the values of the parameters being estimated. (See
+            the `cur_params` method for details)
+
+        """
         if position is None:
             position = self.position
         return self.options.likelihood_fn(self, position)
 
     def calculate_posterior(self, position=None):
+        """Return the prior, likelihood and posterior for a position.
+
+        Calculates the prior and likelihood and adds them together (with the
+        likelihood scaled by the thermodynamic integration temperature, if being
+        used) to generate the posterior. Returns a tuple of the posterior, prior
+        and likelihood as all three are always tracked together by the MCMC
+        algorithm.
+
+        position : list of float, optional
+            log10 of the values of the parameters being estimated. (See
+            the `cur_params` method for details)
+
+        """
         prior = self.calculate_prior(position)
         likelihood = self.calculate_likelihood(position)
         posterior = prior + likelihood * self.options.thermo_temp
         return posterior, prior, likelihood
 
     def calculate_hessian(self, position=None):
-    # http://en.wikipedia.org/wiki/Finite_difference#Finite_difference_in_several_variables
-    # TODO: look into these codes:
-    # http://www.mathworks.com/matlabcentral/fileexchange/13490-adaptive-robust-numerical-differentiation
-    # http://www.mathworks.com/matlabcentral/fileexchange/11870-numerical-derivative-of-analytic-function
+        """Calculate the hessian of the posterior landscape.
+
+        Note that this is very expensive -- O(n^2) where n is the number of
+        parameters being estimated. The calculation is performed using second
+        order central finite differences.
+
+        position : list of float, optional
+            log10 of the values of the parameters being estimated. (See
+            the `cur_params` method for details)
+
+        """
+        # http://en.wikipedia.org/wiki/Finite_difference#Finite_difference_in_several_variables
+        # TODO: look into these codes:
+        # http://www.mathworks.com/matlabcentral/fileexchange/13490-adaptive-robust-numerical-differentiation
+        # http://www.mathworks.com/matlabcentral/fileexchange/11870-numerical-derivative-of-analytic-function
         if position is None:
             position = self.position
         d = 0.1
@@ -352,29 +526,115 @@ class MCMC(object):
 
 class MCMCOpts(object):
 
+    """Options for defining a biomc.MCMC project/run.
+
+    Constructor takes no options. Interface is via direct manipulation of
+    attributes on instances.
+
+    Attributes
+    ----------
+    model : pysb.Model (or similar)
+        The model to estimate. If you do not wish to use a PySB model, you may
+        instead provide any object with a `parameters` attribute holding a list
+        of all model parameters. The parameter objects in turn must each have a
+        `value` attribute containing the parameter's numerical value. If you are
+        not using a PySB model you must rely on your own code to simulate the
+        model in your likelihood function instead of calling `MCMC.simulate`.
+    estimate_params : list of pysb.Parameter
+        List of parameters to estimate, all of which must also be listed in
+        `model.parameters`.
+    initial_values : list of float, optional
+        Starting values for parameters to estimate. If omitted, will use the
+        nominal values from `model.parameters`.
+    tspan : list of float
+        List of time points over which to integrate the model. Ignored if not
+        using a PySB model.
+    step_fn : callable f(mcmc), optional
+        User callback, called on every MCMC iteration.
+    likelihood_fn : callable f(mcmc, position)
+        User likelihood function.
+    prior_fn : callable f(mcmc, position), optional
+        User prior function. If omitted, a flat prior will be used.
+    nsteps : int
+        Number of MCMC iterations to perform.
+    use_hessian : bool, optional
+        Whether to use the Hessian to guide the walk. Defaults to false.
+    start_random : bool, optional
+        Whether to start from a random point in parameter space. Defaults to
+        false. (NOT IMPLEMENTED)
+    boundary_option : bool, optional
+        Whether to enforce hard boundaries on the walk trajectory. Defaults to
+        false. (NOT IMPLEMENTED)
+    rtol : float or list of float, optional
+        Relative tolerance for ODE solver.
+    atol : float or list of float, optional
+        Absolute tolerance for ODE solver.
+    norm_step_size : float, optional
+        MCMC step size. Defaults to a reasonable value.
+    hessian_period : int, optional
+        Number of MCMC steps between Hessian recalculations. Defaults to a
+        reasonable but fairly large value, as hessian calculation is expensive.
+    hessian_scale : float, optional
+        Scaling factor used in generating Hessian-guided steps. Defaults to a
+        reasonable value.
+    sigma_adj_interval : int, optional
+        How often to adust `MCMC.sig_value` while annealing to meet
+        `accept_rate_target`. Defaults to a reasonable value.
+    anneal_length : int, optional
+        Length of initial "burn-in" annealing period. Defaults to 10% of
+        `nsteps`, or if `use_hessian` is true, to `hessian_period` (i.e. anneal
+        until first hessian is calculated).
+    T_init : float, optional
+        Initial temperature for annealing. Defaults to a reasonable value.
+    accept_rate_target : float, optional
+        Desired acceptance rate during annealing. Defaults to a reasonable
+        value. See also `sigma_adj_interval` above.
+    sigma_max : float, optional
+        Maximum value for `MCMC.sig_value`. Defaults to a reasonable value.
+    sigma_min : float, optional
+        Minimum value for `MCMC.sig_value`. Defaults to a reasonable value.
+    sigma_step : float, optional
+        Increment for `MCMC.sig_value` adjustments. Defaults to a reasonable
+        value.
+    thermo_temp : float in the range [0,1], optional
+        Temperature for thermodynamic integration support. Used to scale
+        likelihood when calculating the posterior value. Defaults to 1.0,
+        i.e. no effect.
+    seed : int or list of int, optional
+        Seed for random number generator. Defaults to using a non-deterministic
+        seed (see numpy.random.RandomState). If you want reproducible runs, you
+        must set this to a constant value.
+
+    """
+
     def __init__(self):
-        self.rhs_fn             = None    # model ODE right-hand side fn (t,y,params)
-        self.estimate_params    = None    # list of parameters to estimate
-        self.initial_values     = None    # starting values for parameters to estimate
-        self.tspan              = None    # start/end times for model integration, or list of times
-        self.step_fn            = None    # user callback, called on every MCMC iteration
-        self.likelihood_fn      = None    # model likelihood fn (project,position)
-        self.prior_fn           = None    # model prior fn (project,position)
-        self.nsteps             = None    # number of MCMC iterations to perform
-        self.use_hessian        = False   # whether to use the Hessian to guide the walk
-        self.start_random       = False   #  whether to start from random rates and ICs
-        self.boundary_option    = False # whether to enforce hard boundaries on the walk trajectory
-        self.rtol               = None    # relative tolerance for ODE solver
-        self.atol               = None    # absolute tolerance for ODE solver (scalar or vector)
-        self.norm_step_size     = 0.75  # MCMC step size
-        self.hessian_period     = 25000 # number of MCMC steps between Hessian recalculations
-        self.hessian_scale      = 0.085 # scaling factor used in generating Hessian-guided steps
-        self.sigma_adj_interval = None    # how often to adust sig_value while annealing
-        self.anneal_length      = None    # length of initial "burn-in" annealing period
-        self.T_init             = 10    # initial temperature for annealing
-        self.accept_rate_target = 0.3   # desired acceptance rate during annealing
-        self.sigma_max          = 1     # max value for sigma (MCMC step size scaling factor)
-        self.sigma_min          = 0.25  # min value for sigma
-        self.sigma_step         = 0.125 # increment for sigma adjustments, to retain accept_rate_target
-        self.thermo_temp        = 1     # temperature for thermodynamic integration support
-        self.seed               = None  # seed for random number generator
+        self.model              = None    
+        self.estimate_params    = None
+        self.initial_values     = None
+        self.tspan              = None
+        self.step_fn            = None
+        self.likelihood_fn      = None
+        self.prior_fn           = None
+        self.nsteps             = None
+        self.use_hessian        = False
+        self.start_random       = False
+        self.boundary_option    = False
+        self.rtol               = None
+        self.atol               = None
+        self.norm_step_size     = 0.75
+        self.hessian_period     = 25000
+        self.hessian_scale      = 0.085
+        self.sigma_adj_interval = None
+        self.anneal_length      = None
+        self.T_init             = 10
+        self.accept_rate_target = 0.3
+        self.sigma_max          = 1
+        self.sigma_min          = 0.25
+        self.sigma_step         = 0.125
+        self.thermo_temp        = 1
+        self.seed               = None
+
+    def copy(self):
+        new_options = MCMCOpts()
+        new_options.__dict__.update(self.__dict__)
+        return new_options
