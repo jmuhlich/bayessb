@@ -79,6 +79,8 @@ opts.likelihood_fn = likelihood
 opts.prior_fn = prior
 opts.step_fn = step
 opts.seed = 1
+opts.atol=1e-6
+opts.rtol=1e-3
 mcmc = biomc.MCMC(opts)
 
 mcmc.run()
