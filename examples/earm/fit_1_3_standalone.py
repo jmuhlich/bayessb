@@ -99,28 +99,11 @@ exp_ecrp = np.array([
     1.148,1.156,1.159,1.160,1.160,1.150,1.153,1.163,1.156,1.171,1.147,1.166,1.155,1.159,
     1.163,1.157,1.154,1.154,1.159,1.151,1.162,1.167,1.166,1.159,1.160,1.170,1.165,1.171,
     1.179,1.164,1.176,1.175,1.178,1.175,1.170,1.178,1.173,1.168,1.168,1.169,1.174,1.177,
-    1.178,1.179,1.181,1.182,1.180,1.173,1.185,1.189,1.173,1.167,1.176,1.176,1.182,1.175,
-    1.186,1.188,1.169,1.189,1.179,1.183,1.192,1.194,1.188,1.169,1.182,1.188,1.185,1.185,
-    1.195,1.190,1.177,1.187,1.187,1.191,1.192,1.204,1.193,1.199,1.193,1.196,1.190,1.189,
-    1.196,1.196,1.198,1.186,1.190,1.190,1.198,1.198,1.186,1.190,1.197,1.191,1.208,1.197,
-    1.206,1.197,1.209,1.198,1.200,1.196,1.212,1.200,1.205,1.205,1.205,1.206,1.198,1.209,
-    1.207,1.206,1.203,1.190,1.211,1.200,1.204,1.202,1.188,1.207,1.212,1.204,1.203,1.202,
-    1.199,1.202,1.209,1.210,1.199,1.199,1.218,1.216,1.213,1.197,1.207,1.210,1.224,1.226,
-    1.226,1.202,1.216,1.186,1.209,1.203,1.195,1.194,1.199,1.209,1.198,1.213,1.194,1.195,
-    1.203,1.194,1.160,1.192
+    1.178,1.179,1.181,1.182
     ])
 # index for beginning and end of MOMP (where the EC-RP signal spikes)
 momp_start_idx = 75
 momp_end_idx = 86
-# data was collected at evenly-spaced points over 12 hours
-tspan = np.linspace(0, 12 * 3600, len(exp_ecrp))
-# select the forward/reverse/catalytic parameters for estimation
-kf = filter_params('kf')
-kr = filter_params('kr')
-kc = filter_params('kc')
-estimate_params = sort_params(kf + kr + kc)
-# grab the initial amount of parp, for normalizing CPARP trajectories
-parp_initial = [p.value for p in model.parameters if p.name == 'PARP_0'][0]
 
 ### XXX temp
 for i, p in enumerate(model.parameters):
@@ -133,6 +116,16 @@ for i, p in enumerate(model.parameters):
         # degradation makes CPARP slope down in the simulation. if we disable
         # the degradation then the simulated trajectory is much flatter.
         model.parameters[i] = p._replace(value=0)
+
+# data was collected at evenly-spaced points over 12 hours
+tspan = np.linspace(0, 12 * 3600, len(exp_ecrp))
+# select the forward/reverse/catalytic parameters for estimation
+kf = filter_params('kf')
+kr = filter_params('kr')
+kc = filter_params('kc')
+estimate_params = sort_params(kf + kr + kc)
+# grab the initial amount of parp, for normalizing CPARP trajectories
+parp_initial = [p.value for p in model.parameters if p.name == 'PARP_0'][0]
 
 prior_mean, prior_var = calculate_prior_stats()
 
@@ -168,18 +161,20 @@ opts.step_fn = step
 opts.estimate_params = estimate_params
 # the specific value of seed isn't important, it just makes the run reproducible
 opts.seed = 1  
+# note that solver tolerance values are set in earm_1_3_standalone.py
 
 
 # run the chain
 mcmc = biomc.MCMC(opts)
 mcmc.run()
 
+
 # print some information about the maximum-likelihood estimate parameter set
 print
 print '%-10s %-12s %-12s %s' % ('parameter', 'original', 'fitted', 'log10(fit/orig)')
 fitted_values = mcmc.cur_params()[mcmc.estimate_idx]
-for param, new_value in zip(opts.estimate_params, fitted_values):
-    change = np.log10(new_value / param.value)
+changes = np.log10(fitted_values / [p.value for p in opts.estimate_params])
+for param, new_value, change in zip(opts.estimate_params, fitted_values, changes):
     values = (param.name, param.value, new_value, change)
     print '%-10s %-12.2g %-12.2g %-+6.2f' % values
 
@@ -189,5 +184,6 @@ _, yobs_final = model.simulate(tspan, mcmc.cur_params(mcmc.position))
 plt.plot(tspan, exp_ecrp, 'o', mec='red', mfc='none')
 plt.plot(tspan, yobs_initial['CPARP_total']/parp_initial, 'b');
 plt.plot(tspan, yobs_final['CPARP_total']/parp_initial, 'k');
-plt.legend(('data', 'original model', 'fitted model'), loc='lower right')
+plt.xlim(0, 2.5e4)
+plt.legend(('data', 'original model', 'fitted model'), loc='upper left')
 plt.show()
