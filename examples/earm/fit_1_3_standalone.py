@@ -1,5 +1,8 @@
-# Fits EARM 1.3 (Gaudet et. al 2012) against a single-cell executioner caspase
-# reporter (EC-RP). The model is
+# Fits EARM 1.3 (Gaudet et. al 2012) against a single-cell time course
+# measurement of an executioner caspase reporter (a proxy for Caspase-3 activity
+# i.e. PARP cleavage). The model is contained in earm_1_3_standalone.py which
+# was produced via export from a PySB implementation of the model
+# (pysb.examples.earm_1_3 in the PySB distribution).
 
 import biomc
 import numpy as np
