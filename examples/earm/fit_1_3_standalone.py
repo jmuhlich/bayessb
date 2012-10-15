@@ -166,7 +166,8 @@ mcmc.run()
 # print some information about the maximum-likelihood estimate parameter set
 print
 print '%-10s %-12s %-12s %s' % ('parameter', 'original', 'fitted', 'log10(fit/orig)')
-fitted_values = mcmc.cur_params()[mcmc.estimate_idx]
+max_likelihood_pos = mcmc.positions[mcmc.likelihoods.argmin()]
+fitted_values = 10 ** max_likelihood_pos
 changes = np.log10(fitted_values / [p.value for p in opts.estimate_params])
 for param, new_value, change in zip(opts.estimate_params, fitted_values, changes):
     values = (param.name, param.value, new_value, change)
