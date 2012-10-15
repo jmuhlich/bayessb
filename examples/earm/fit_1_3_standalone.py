@@ -111,18 +111,6 @@ exp_ecrp = np.array([
 momp_start_idx = 75
 momp_end_idx = 86
 
-### XXX temp
-for i, p in enumerate(model.parameters):
-    if p.name == 'kf31':
-        # original value of 1e-3 gives a much better initial fit, but starting
-        # from 1e-2 helps converge to a better fit faster.
-        model.parameters[i] = p._replace(value=1e-2)
-    if False and p.name == 'kdeg_CPARP':
-        # we process the post-momp signal to force a flat plateau, but CPARP
-        # degradation makes CPARP slope down in the simulation. if we disable
-        # the degradation then the simulated trajectory is much flatter.
-        model.parameters[i] = p._replace(value=0)
-
 # data was collected at evenly-spaced points over 12 hours
 tspan = np.linspace(0, 12 * 3600, len(exp_ecrp))
 # select the forward/reverse/catalytic parameters for estimation
