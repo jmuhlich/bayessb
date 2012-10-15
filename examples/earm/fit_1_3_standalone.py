@@ -17,7 +17,10 @@ def likelihood(mcmc, position):
     param_values = mcmc.cur_params(position)
     _, yobs = model.simulate(mcmc.options.tspan, param_values, view=True)
     cparp_sim_norm = yobs['CPARP_total'] / parp_initial
-    return np.sum((exp_ecrp - cparp_sim_norm) ** 2 / (2 * exp_ecrp_var ** 2))
+    likelihoods = (exp_ecrp - cparp_sim_norm) ** 2 / (2 * exp_ecrp_var ** 2)
+    # only fit up to the plateau start, since cparp degradation prevents a good
+    # fit to the plateau
+    return np.sum(likelihoods[:plateau_idx])
 
 def prior(mcmc, position):
     """TODO ...mean and variance from calculate_prior_stats"""
