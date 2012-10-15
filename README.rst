@@ -5,12 +5,17 @@ Bayesian model inference and parameter estimation for biological models
 
 http://sorgerlab.github.com/biomc
 
-BioMC is a Python software library for performing Bayesian model inference and
-parameter estimation on biological models, using a Markov Chain Monte
-Carlo (MCMC) technique described in the paper *Eydgahi et al. Bayesian parameter
-estimation and model discrimination for complex biochemical networks. Mol Syst
-Biol (in review)*.
+BioMC is an algorithm and software suite for estimating parameter distributions
+in ODE-based models of cellular biochemistry and for discriminating between
+models having different numbers of unknown parameters. The algorithm is
+described in detail in *Eydgahi et al. Bayesian parameter estimation and model
+discrimination for complex biochemical networks. Mol Syst Biol (in review)*.
 
+The procedure returns joint probability distributions for model parameters and
+makes it possible to compute uncertainty for model-based predictions based on
+error in the data and the non-identifiability of model parameters. Bayesian
+methods also make it possible to compute the odds ratio for competing models
+having different numbers of parameters.
 
 Installation
 ------------
