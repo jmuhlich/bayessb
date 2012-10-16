@@ -8,9 +8,9 @@ http://sorgerlab.github.com/bayessb
 BayesSB is an algorithm and software suite for estimating parameter
 distributions in ODE-based models of cellular biochemistry and for
 discriminating between models having different numbers of unknown
-parameters. The algorithm is described in detail in *Eydgahi et al. Bayesian
-parameter estimation and model discrimination for complex biochemical
-networks. Mol Syst Biol (in review)*.
+parameters. The algorithm is described in detail in *Eydgahi et al. Properties
+of cell death models calibrated and compared using Bayesian approaches. Mol Syst
+Biol (in review)*.
 
 The procedure returns joint probability distributions for model parameters and
 makes it possible to compute uncertainty for model-based predictions based on
