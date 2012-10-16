@@ -4,7 +4,7 @@
 # was produced via export from a PySB implementation of the model
 # (pysb.examples.earm_1_3 in the PySB distribution).
 
-import biomc
+import bayessb
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -65,7 +65,7 @@ def calculate_prior_stats():
     mean = np.empty(len(estimate_params))
     var = np.empty_like(mean)
     var.fill(2.0)
-    # note: estimate_params must be sorted here, in the same order that biomc
+    # note: estimate_params must be sorted here, in the same order that bayessb
     # maintains the position vector
     for i, p in enumerate(estimate_params):
         if p in kf_fast:
@@ -145,7 +145,7 @@ exp_ecrp_var[:] = 0.0272
 exp_ecrp_var[momp_start_idx:momp_end_idx+1] = 0.1179
 
 # set up our MCMC options
-opts = biomc.MCMCOpts()
+opts = bayessb.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
 opts.nsteps = 200
@@ -159,7 +159,7 @@ opts.seed = 1
 
 
 # run the chain
-mcmc = biomc.MCMC(opts)
+mcmc = bayessb.MCMC(opts)
 mcmc.run()
 
 

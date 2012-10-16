@@ -1,7 +1,7 @@
 # Fits EARM 1.0 (Albeck et. al 2008) against single-cell measurements
 # of caspase reporters and MOMP timing.
 
-import biomc
+import bayessb
 import pysb.integrate
 import numpy
 import matplotlib.pyplot as plt
@@ -49,7 +49,7 @@ tspan = numpy.linspace(0, t_end, len(ydata_norm))
 
 obs_names = ['tBid_total', 'CPARP_total', 'cSmac_total']
 
-opts = biomc.MCMCOpts()
+opts = bayessb.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
 
@@ -81,7 +81,7 @@ opts.step_fn = step
 opts.seed = 1
 opts.atol=1e-6
 opts.rtol=1e-3
-mcmc = biomc.MCMC(opts)
+mcmc = bayessb.MCMC(opts)
 
 mcmc.run()
 

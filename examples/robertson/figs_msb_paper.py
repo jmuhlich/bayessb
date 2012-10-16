@@ -1,4 +1,4 @@
-import biomc
+import bayessb
 from pysb.examples.robertson import model
 import pysb.integrate
 import numpy
@@ -33,7 +33,7 @@ def scatter(mcmc, mask=True, example_pos_r=None, example_pos_g=None,
 
     Parameters
     ----------
-    mcmc : biomc.MCMC
+    mcmc : bayessb.MCMC
         The MCMC object to display.
     mask : bool/int, optional
         If True (default) the annealing phase of the walk will be discarded
@@ -194,7 +194,7 @@ def main():
     ysim_max = solver.y.max(0)
     ydata_norm = ydata / ysim_max
 
-    opts = biomc.MCMCOpts()
+    opts = bayessb.MCMCOpts()
     opts.model = model
     opts.tspan = tspan
 
@@ -210,7 +210,7 @@ def main():
     opts.use_hessian = True
     opts.hessian_period = opts.nsteps / 10
     opts.seed = seed
-    mcmc = biomc.MCMC(opts)
+    mcmc = bayessb.MCMC(opts)
 
     mcmc.run()
 

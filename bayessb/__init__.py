@@ -19,13 +19,13 @@ class MCMC(object):
 
     Parameters
     ----------
-    options : biomc.MCMCOpts
+    options : bayessb.MCMCOpts
         Option set -- defines the problem and sets some parameters to control
         the MCMC algorithm.
 
     Attributes
     ----------
-    options : biomc.MCMCOpts
+    options : bayessb.MCMCOpts
         Validated copy of options passed to constructor.
     num_estimate : int
         Number of parameters to estimate.
@@ -526,7 +526,7 @@ class MCMC(object):
 
 class MCMCOpts(object):
 
-    """Options for defining a biomc.MCMC project/run.
+    """Options for defining a bayessb.MCMC project/run.
 
     Constructor takes no options. Interface is via direct manipulation of
     attributes on instances.

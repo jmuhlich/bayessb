@@ -1,4 +1,4 @@
-import biomc
+import bayessb
 from pysb.examples.robertson import model
 from pysb.integrate import odesolve
 import numpy
@@ -86,7 +86,7 @@ def plot_fit(position):
 print "Running scenario", scenario
 print "=================="
 
-opts = biomc.MCMCOpts()
+opts = bayessb.MCMCOpts()
 opts.model = model
 opts.tspan = tspan
 
@@ -115,7 +115,7 @@ opts.step_fn = step
 opts.use_hessian = True
 opts.hessian_period = opts.nsteps / 10
 opts.seed = seed
-mcmc = biomc.MCMC(opts)
+mcmc = bayessb.MCMC(opts)
 
 mcmc.run()
 
