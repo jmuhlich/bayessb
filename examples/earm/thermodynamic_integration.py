@@ -2,6 +2,7 @@ from __future__ import division
 import bayessb
 import numpy as np
 import scipy.integrate
+import matplotlib.pyplot as plt
 import itertools
 import multiprocessing
 import sys
@@ -10,11 +11,14 @@ from fit_1_3_standalone import build_opts
 
 def run_chain(args):
     temperature, sample = args
+    # Start with master option set, then override temperature and seed
     opts = master_opts.copy()
     opts.thermo_temp = temperature
     opts.seed = sample
+    # Build an MCMC object and run it
     mcmc = bayessb.MCMC(opts)
     mcmc.run()
+    # Return likelihoods of accepted moves in the latter half of the walk
     num_likelihoods = mcmc.acceptance // 2
     return mcmc.likelihoods[mcmc.accepts][num_likelihoods:]
 
@@ -28,15 +32,24 @@ def print_progress_bar(fraction):
 
 if __name__ == '__main__':
 
+    print "Performing thermodynamic integration:"
+
+    # Build master option set
     master_opts = build_opts()
+    # Don't print anything out, as we'll have many simultaneous workers
     master_opts.step_fn = None
-    num_temps = 16
-    num_chains = 4
+    # Choose the number of temperatures to sample and chains to run at each
+    num_temps = 8
+    num_chains = 3
+    # Sample temperatures on a log scale, from 1e-3 to 1
     temperatures = np.logspace(-3, 0, num_temps)
+    # Produce tuples of input arguments to run_chain
     inputs = itertools.product(temperatures, xrange(num_chains))
 
+    # Launch a parallel processing pool to run the chains
     pool = multiprocessing.Pool()
     result = pool.map_async(run_chain, inputs)
+    # Print a progress bar while the pool is still working
     num_chunks = result._number_left
     while not result.ready():
         try:
@@ -51,19 +64,32 @@ if __name__ == '__main__':
     pool.close()
     pool.join()
 
+    # Calculate mean of likelihoods from all chains at each temperature, and
+    # standard deviation on the means from each chain at each temperature
     likelihood_means = np.empty_like(temperatures)
     likelihood_stds = np.empty_like(temperatures)
     for i, temperature in enumerate(temperatures):
         likelihood_sets = []
         for c in xrange(num_chains):
-            likelihood_sets.append(outputs[i * num_chains + c])
-        likelihoods = np.hstack(likelihood_sets)
-        likelihood_means[i] = likelihoods.mean()
-        likelihood_stds[i] = likelihoods.std()
+            # Extract the right likelihood vectors from the pool output,
+            # negating the values to obtain positive log-likelihood values
+            likelihood_sets.append(-1 * outputs[i * num_chains + c])
+        # Mean of all likelihood values
+        likelihood_means[i] = np.mean(np.hstack(likelihood_sets))
+        # Standard deviation on the means
+        likelihood_stds[i] = np.std(map(np.mean, likelihood_sets))
 
+    # Produce a number of sampled trajectories from the means and stds
     num_samples = 1000
     sample_iter = itertools.imap(np.random.normal, likelihood_means,
                                  likelihood_stds, itertools.repeat(num_samples))
-    # FIXME needlessly creates an intermediate list
+    # FIXME this needlessly creates an intermediate list
     samples = np.array(list(sample_iter)).T
-    bayes_factors = scipy.integrate.simps(samples, temperatures)
+
+    # Integrate sampled trajectories to obtain (log) Bayes factors
+    log_bayes_factors = scipy.integrate.simps(samples, temperatures)
+    # Plot histogram of Bayes factors
+    plt.hist(np.exp(log_bayes_factors), bins=40)
+    plt.xlabel('Bayes factor')
+    plt.ylabel('Count')
+    plt.show()
