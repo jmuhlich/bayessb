@@ -290,7 +290,7 @@ class MCMC(object):
 
             # ------------------METROPOLIS-HASTINGS ALGORITHM-------------------
             delta_posterior = self.test_posterior - self.accept_posterior
-            if math.e ** delta_posterior < 1:
+            if delta_posterior < 0:
                 self.accept_move()
             else:
                 alpha = self.random.rand()
