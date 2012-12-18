@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+"""Calculate evidence using EARM 1.3 and single-cell data, using thermodynamic
+integration. Will use all available local CPU cores."""
+
+
 from __future__ import division
 import bayessb
 import numpy as np
@@ -86,10 +91,14 @@ if __name__ == '__main__':
     # FIXME this needlessly creates an intermediate list
     samples = np.array(list(sample_iter)).T
 
-    # Integrate sampled trajectories to obtain (log) Bayes factors
-    log_bayes_factors = scipy.integrate.simps(samples, temperatures)
-    # Plot histogram of Bayes factors
-    plt.hist(np.exp(log_bayes_factors), bins=40)
-    plt.xlabel('Bayes factor')
+    # Integrate sampled trajectories to obtain log-evidence i.e.
+    # log(P(Data|Model))
+    log_evidences = scipy.integrate.simps(samples, temperatures)
+    # Plot histogram of evidence values
+    counts, bins, _ = plt.hist(np.exp(log_evidences), bins=40)
+    print 'Histogram of evidence values:'
+    for b, c in zip(bins, counts):
+        print '%-8.3g: %d' % (b, c)
+    plt.xlabel('Evidence')
     plt.ylabel('Count')
     plt.show()
