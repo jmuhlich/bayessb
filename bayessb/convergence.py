@@ -90,6 +90,10 @@ precision may be required."
 """
 
 import numpy as np
+from nose.tools import eq_
+
+# Used for the nose tests included below
+test_data = [[1, 2, 3], [4, 5, 6]]
 
 def check_chain_lengths(chain_set):
     """Checks to make sure there is more than one chain in the set, and that
@@ -100,8 +104,8 @@ def check_chain_lengths(chain_set):
         raise Exception("To calculate the convergence criterion, there must " +
                         "be more than one chain.")
     n = len(chain_set[0])
-    for i in range(0, n):
-        if len(chain_set[i]) != i:
+    for i in range(0, len(chain_set)):
+        if len(chain_set[i]) != n:
             raise Exception("To calculate the within-chain variances, all " +
                 "chains must be the same length.")
 
@@ -189,3 +193,45 @@ def convergence_criterion(chain_set):
     var = parameter_variance_estimates(chain_set)
 
     return np.sqrt(var / W)
+
+def test_within_chain_variances():
+    """Check the within-chain variance calculation using a simple example."""
+    # The average of the first chain is 2; the second is 5
+    # The variance of the first chain is 1/2 * 2 = 1
+    # The variance of the second chain is also 1/2 * 2 = 1
+    # The average of the two variances is therefore 1.0
+    eq_(1.0, within_chain_variances(test_data),
+            "Failed to correctly calculate within-chain variance!")
+
+def test_between_chain_variances():
+    """Check the between-chain variance calculation using a simple example."""
+    # The average of the first chain is 2; the second is 5
+    # The average of the two averages is thus 3.5
+    # The variance between the chains is thus
+    # = 3/1 * [(3.5-2)^2 + (3.5-5)^2]
+    # = 3 * [9/4 + 9/4]
+    # = 54/4 = 13.5
+    eq_(13.5, between_chain_variances(test_data),
+            "Failed to correctly calculate between-chain variance!")
+
+def test_parameter_variance_estimates():
+    """Check the parameter variance estimate calculation using a simple
+    example."""
+    # For the test data, W is 1.0 and B is 13.5 (see tests above)
+    # The variance estimate is thus
+    # = (2/3 * 1.0) + (1/3 * 13.5)
+    # = 2/3 + 18/4
+    # = 8/12 + 54/12
+    # = 62/12
+    eq_(62/12., parameter_variance_estimates(test_data),
+            "Failed to correctly calculate parameter variance estimates!")
+
+def test_convergence_criterion():
+    """Check the convergence criterion calculation using a simple example."""
+    # For the test data, the estimated variance is 62/12, and the
+    # within-chain variance is 1.0 (see other tests above)
+    # The convergence criterion is therefore
+    # sqrt( (62/12) / 1.0)
+    eq_(np.sqrt(62/12.), convergence_criterion(test_data),
+            "Failed to correctly calculate the convergence criterion!")
+
