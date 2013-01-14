@@ -1,4 +1,4 @@
-"""A simple model and MCMC execution routine for testing the properties of the
+"""A simple model and MCMC execution routine for exploring the properties of the
 Gelman-Rubin convergence criterion."""
 
 from pysb import *
@@ -17,7 +17,7 @@ Initial(A(), Parameter('A_0', 2))
 Rule('Decay_A', A() >> None, Parameter('k', 1))
 Observable('A_', A())
 
-# Define the time span, number of steps, and other globals
+# Define the time span, number of steps, number of chains, and other globals
 tmax = 10
 tspan = np.linspace(0, tmax, 100)
 random_seed = 1
