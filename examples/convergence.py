@@ -25,9 +25,7 @@ sigma = 0.1
 nsteps = 8000
 num_chains = 5
 
-# TODO: Need to actually get real synthetic data!
-#synthetic_data = pysb.util.synthetic_data(model, tspan, seed=random_seed)
-synthetic_data = odesolve(model, tspan)
+synthetic_data = pysb.util.synthetic_data(model, tspan)
 
 def do_fit(iteration):
     """Runs MCMC on the globally defined model."""
@@ -36,9 +34,6 @@ def do_fit(iteration):
         yout = mcmc.simulate(position, observables=True)
         err = np.sum((synthetic_data['A_'] - yout['A_'])**2 / (2*sigma**2))
         return err
-
-    # Set the random number generator seed
-    random = np.random.RandomState(random_seed)
 
     # Initialize the MCMC arguments
     opts = bayessb.MCMCOpts()
