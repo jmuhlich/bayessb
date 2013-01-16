@@ -498,8 +498,8 @@ class MCMC(object):
             b = self.calculate_posterior(position_b)[0]
             hessian[i,i] = (f - 2*c + b) / d ** 2
         # iterate over elements above diagonal
-        for i in range(self.num_estimate-1):         # FIXME should probably range(1+...)
-            for j in range(i, self.num_estimate):
+        for i in range(self.num_estimate-1):
+            for j in range(i + 1, self.num_estimate):
                 position_ff = position.copy()
                 position_fb = position.copy()
                 position_bf = position.copy()
