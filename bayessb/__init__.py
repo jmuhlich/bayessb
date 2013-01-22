@@ -408,7 +408,7 @@ class MCMC(object):
             # FIXME call eig() only when hessian changes and store results
             eig_val, eig_vec = np.linalg.eig(self.hessian)
             # clamp eigenvalues to a lower bound of 0.25
-            adj_eig_val = np.maximum(abs(eig_val), 0.25)
+            adj_eig_val = np.maximum(abs(eig_val), 0.1)
             # transform into eigenspace, with length scaled by the inverse
             # square root of the eigenvalues. length is furthermore scaled down
             # by a constant factor.
