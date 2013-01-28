@@ -111,7 +111,7 @@ def scatter(mcmc, mask=True):
     # TODO: would axis('scaled') force the aspect ratio we want?
     plt.show()
 
-def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
+def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, gridsize=20):
     """
     Display the posterior of an MCMC walk as a 3-D surface.
 
@@ -141,6 +141,12 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
     # build grid of points for sampling the posterior surface
     pos_min = positions.min(0)
     pos_max = positions.max(0)
+    if square_aspect:
+        # enforce square aspect ratio in X-Y plane by recomputing pos_min/max
+        pos_max_range = numpy.max(pos_max - pos_min)
+        pos_mean = numpy.mean([pos_min, pos_max], 0)
+        pos_min = pos_mean - pos_max_range / 2
+        pos_max = pos_mean + pos_max_range / 2
     margin = (pos_max - pos_min) * 0.1
     pos_min -= margin
     pos_max += margin
