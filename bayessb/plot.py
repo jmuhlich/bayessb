@@ -170,11 +170,11 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1,
     inputs = itertools.product([mcmc], [position_base], [dim0], [dim1], inputs)
     try:
         pool = multiprocessing.Pool()
+        outputs = pool.map(surf_calc_mesh_pos, inputs)
+        pool.close()
     except KeyboardInterrupt:
         pool.terminate()
         raise
-    outputs = pool.map(surf_calc_mesh_pos, inputs)
-    pool.close()
     for i0 in range(gridsize):
         for i1 in range(gridsize):
             posterior_mesh[i0, i1] = outputs[i0 * gridsize + i1]
@@ -193,12 +193,15 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1,
     plt.show()
 
 def surf_calc_mesh_pos(args):
-    mcmc, position_base, dim0, dim1, param_vals = args
-    p0_val, p1_val = param_vals
-    position = position_base.copy()
-    position[dim0] = p0_val
-    position[dim1] = p1_val
-    return mcmc.calculate_posterior(position)[0]
+    try:
+        mcmc, position_base, dim0, dim1, param_vals = args
+        p0_val, p1_val = param_vals
+        position = position_base.copy()
+        position[dim0] = p0_val
+        position[dim1] = p1_val
+        return mcmc.calculate_posterior(position)[0]
+    except KeyboardInterrupt:
+        raise RuntimeError()
 
 def sample(mcmc, n, colors, norm_factor=None):
     """
