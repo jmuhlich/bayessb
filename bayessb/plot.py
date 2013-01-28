@@ -154,7 +154,11 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
     idx_iter = itertools.product(range(gridsize), range(gridsize))
     inputs = ((p0_mesh[i0, i1], p1_mesh[i0, i1]) for i0, i1 in idx_iter)
     inputs = itertools.product([mcmc], [position_base], [dim0], [dim1], inputs)
-    pool = multiprocessing.Pool()
+    try:
+        pool = multiprocessing.Pool()
+    except KeyboardInterrupt:
+        pool.terminate()
+        raise
     outputs = pool.map(surf_calc_mesh_pos, inputs)
     pool.close()
     for i0 in range(gridsize):
