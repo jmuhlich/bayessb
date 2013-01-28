@@ -111,21 +111,29 @@ def scatter(mcmc, mask=True):
     # TODO: would axis('scaled') force the aspect ratio we want?
     plt.show()
 
-def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, gridsize=20):
+def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1,
+         gridsize=20):
     """
     Display the posterior of an MCMC walk as a 3-D surface.
 
     Parameters
     ----------
     mcmc : bayessb.MCMC
-        The MCMC object to display.
+        MCMC object to display.
     dim0, dim1 : indices of parameters to display
     mask : bool/int, optional
         If True (default) the annealing phase of the walk will be discarded
         before plotting. If False, nothing will be discarded and all points will
         be plotted. If an integer, specifies the number of steps to be discarded
         from the beginning of the walk.
-
+    square_aspect : bool, optional
+        If True (default) the X and Y scales of the plot will be equal, allowing
+        for direct comparison of moves in the corresponding parameter axes. If
+        False the scales will auto-adjust to fit the data tightly, allowing for
+        visualization of the full variance along both axes.
+    margin : float, optional
+        Fraction of the X and Y ranges to add as padding to the plot. Defaults
+        to 0.1.
     """
     # mask off the annealing (burn-in) phase, or up to a user-specified step
     if mask is True:
@@ -147,9 +155,9 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, gridsize=20):
         pos_mean = numpy.mean([pos_min, pos_max], 0)
         pos_min = pos_mean - pos_max_range / 2
         pos_max = pos_mean + pos_max_range / 2
-    margin = (pos_max - pos_min) * 0.1
-    pos_min -= margin
-    pos_max += margin
+    margin_offset = (pos_max - pos_min) * margin
+    pos_min -= margin_offset
+    pos_max += margin_offset
     p0_vals = numpy.linspace(pos_min[0], pos_max[0], gridsize)
     p1_vals = numpy.linspace(pos_min[1], pos_max[1], gridsize)
     p0_mesh, p1_mesh = numpy.meshgrid(p0_vals, p1_vals)
