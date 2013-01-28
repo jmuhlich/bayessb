@@ -6,6 +6,7 @@ import mpl_toolkits.mplot3d as mplot3d
 import numpy
 import math
 import itertools
+import multiprocessing
 import pysb.integrate
 
 
@@ -126,40 +127,60 @@ def surf(mcmc, dim0, dim1, mask=True, gridsize=20):
         from the beginning of the walk.
 
     """
-    # vector of booleans indicating accepted MCMC moves
-    accepts = mcmc.accepts.copy()
     # mask off the annealing (burn-in) phase, or up to a user-specified step
     if mask is True:
         mask = mcmc.options.anneal_length
-    if mask is False:
+    elif mask is False:
         mask = 0
-    accepts[0:mask] = 0
-    # grab position vectors and posterior values from accepted moves
-    positions = mcmc.positions[accepts]
-    posteriors = mcmc.posteriors[accepts]
+    # create masked versions of a few vectors of interest
+    accepts = mcmc.accepts[mask:]
+    rejects = mcmc.rejects[mask:]
+    posteriors = mcmc.posteriors[mask:]
     # filter out the position elements we aren't plotting
-    positions = positions[:, (dim0, dim1)]
+    positions = mcmc.positions[mask:, (dim0, dim1)]
     # build grid of points for sampling the posterior surface
     pos_min = positions.min(0)
     pos_max = positions.max(0)
+    margin = (pos_max - pos_min) * 0.1
+    pos_min -= margin
+    pos_max += margin
     p0_vals = numpy.linspace(pos_min[0], pos_max[0], gridsize)
     p1_vals = numpy.linspace(pos_min[1], pos_max[1], gridsize)
     p0_mesh, p1_mesh = numpy.meshgrid(p0_vals, p1_vals)
     # calculate posterior value at all gridsize*gridsize points
     posterior_mesh = numpy.empty_like(p0_mesh)
     position_base = numpy.median(mcmc.positions, axis=0)
-    for i0, i1 in itertools.product(range(gridsize), range(gridsize)):
-        position = position_base.copy()
-        position[dim0] = p0_mesh[i0, i1]
-        position[dim1] = p1_mesh[i0, i1]
-        posterior_mesh[i0, i1] = mcmc.calculate_posterior(position)[0]
+    # use multiprocessing to make use of multiple cores
+    idx_iter = itertools.product(range(gridsize), range(gridsize))
+    inputs = ((p0_mesh[i0, i1], p1_mesh[i0, i1]) for i0, i1 in idx_iter)
+    inputs = itertools.product([mcmc], [position_base], [dim0], [dim1], inputs)
+    pool = multiprocessing.Pool()
+    outputs = pool.map(surf_calc_mesh_pos, inputs)
+    pool.close()
+    for i0 in range(gridsize):
+        for i1 in range(gridsize):
+            posterior_mesh[i0, i1] = outputs[i0 * gridsize + i1]
     # plot 3-D surface
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     ax.plot_surface(p0_mesh, p1_mesh, posterior_mesh, rstride=1, cstride=1,
                     cmap=matplotlib.cm.jet, linewidth=0, alpha=0.2)
-    ax.scatter(positions[:,0], positions[:,1], posteriors, c='k', marker=',', s=1)
+    ax.plot(positions[accepts,0], positions[accepts,1], posteriors[accepts],
+            c='k')
+    ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
+               marker='x', c='k', alpha=0.3)
+    ax.set_xlabel('ln(%s)' % mcmc.options.estimate_params[dim0].name)
+    ax.set_ylabel('ln(%s)' % mcmc.options.estimate_params[dim1].name)
+    ax.set_zlabel('-ln(posterior)')
     plt.show()
+
+def surf_calc_mesh_pos(args):
+    mcmc, position_base, dim0, dim1, param_vals = args
+    p0_val, p1_val = param_vals
+    position = position_base.copy()
+    position[dim0] = p0_val
+    position[dim1] = p1_val
+    return mcmc.calculate_posterior(position)[0]
 
 def sample(mcmc, n, colors, norm_factor=None):
     """
