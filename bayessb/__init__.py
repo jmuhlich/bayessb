@@ -99,10 +99,8 @@ class MCMC(object):
         Trace of whether each propsed move was accepted or rejected. Length is
         `nsteps`.
     hessians : numpy.ndarray of float
-        Trace of all hessians. Size is `num_estimate`x`num_estimate`x`nsteps`.
-        NOTE: This currently wastes a LOT of space, as it stores a hessian at
-        every step but the hessian only changes every `options.hessian_period`
-        steps. It will be fixed soon.    
+        Trace of all hessians. Size is `num_estimate`x`num_estimate`x`num_hessians`
+        where num_hessians is the actual number of hessians to be calculated.
 
     Notes
     -----
@@ -259,8 +257,10 @@ class MCMC(object):
         self.sigmas = np.empty(self.options.nsteps)
         self.accepts = np.zeros(self.options.nsteps, dtype=bool)
         self.rejects = np.zeros(self.options.nsteps, dtype=bool)
-        # FIXME only store distinct hessians -- it doesn't change on every iter
-        self.hessians = np.empty((self.options.nsteps, self.num_estimate, self.num_estimate))
+        hessian_steps = self.options.nsteps - self.options.anneal_length
+        num_hessians = int(math.ceil(float(hessian_steps)
+                                     / self.options.hessian_period))
+        self.hessians = np.empty((num_hessians, self.num_estimate, self.num_estimate))
 
     def init_solver(self):
         """Initialize solver from model and tspan."""
@@ -276,11 +276,16 @@ class MCMC(object):
         while self.iter < self.options.nsteps:
 
             # update hessian
-            if self.options.use_hessian and self.iter % self.options.hessian_period == 0:
+            if (self.options.use_hessian
+                and self.iter >= self.options.anneal_length
+                and self.iter % self.options.hessian_period == 0):
                 try:
                     self.hessian = self.calculate_hessian()
-                except Exception as e:
-                    # don't update if new hessian failed to calculate properly
+                    hessian_num = ((self.iter - self.options.anneal_length)
+                                   // self.options.hessian_period)
+                    self.hessians[hessian_num,:,:] = self.hessian;
+
+                except HessianCalculationError:
                     pass
 
             # choose test position and calculate posterior there
@@ -321,7 +326,6 @@ class MCMC(object):
             self.delta_posteriors[self.iter] = delta_posterior
             self.sigmas[self.iter] = self.sig_value
             self.ts[self.iter] = self.T
-            self.hessians[self.iter,:,:] = self.hessian;
                 
             # call user-callback step function
             if self.options.step_fn:
@@ -520,8 +524,12 @@ class MCMC(object):
                 # hessian is symmetric, so we copy the value to the transposed location
                 hessian[j,i] = hessian[i,j]
         if np.any(np.isnan(hessian)):
-            raise Exception("NaN encountered in hessian calculation")
+            raise HessianCalculationError("NaN encountered in hessian calculation")
         return hessian
+
+
+class HessianCalculationError(RuntimeError):
+    pass
 
 
 class MCMCOpts(object):
