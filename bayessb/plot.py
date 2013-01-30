@@ -183,7 +183,7 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1, step=1,
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     ax.plot_surface(p0_mesh, p1_mesh, posterior_mesh, rstride=1, cstride=1,
-                    cmap=matplotlib.cm.jet, linewidth=0, alpha=0.2)
+                    cmap=matplotlib.cm.jet, linewidth=0.02, alpha=0.2)
     ax.plot(positions[accepts,0], positions[accepts,1], posteriors[accepts],
             c='k')
     ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
