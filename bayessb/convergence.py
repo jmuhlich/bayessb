@@ -92,9 +92,6 @@ precision may be required."
 import numpy as np
 from nose.tools import eq_
 
-# Used for the nose tests included below
-test_data = [[1, 2, 3], [4, 5, 6]]
-
 def check_chain_lengths(chain_set):
     """Checks to make sure there is more than one chain in the set, and that
     all chains are the same length.
@@ -113,8 +110,7 @@ def within_chain_variances(chain_set):
     """
     Calculate the vector of average within-chain variances, *W*.
 
-    Takes a list of chains (each expressed as an array of positions,
-    presumed to have already been transformed to linear (not log) space.
+    Takes a list of chains (each expressed as an array of positions).
     Note that all chains should be the same length.
     """
 
@@ -135,8 +131,7 @@ def between_chain_variances(chain_set):
     """
     Calculate the vector of between-chain variances, *B*.
 
-    Takes a list of chains (each expressed as an array of positions,
-    presumed to have already been transformed to linear (not log) space.
+    Takes a list of chains (each expressed as an array of positions).
     Note that all chains should be the same length.
     """
 
@@ -163,8 +158,7 @@ def parameter_variance_estimates(chain_set):
 
        \widehat{\mathrm{var}}^+ (\psi|y) = \frac{n-1}{n} W + \frac{1}{n} B
 
-    Takes a list of chains (each expressed as an array of positions,
-    presumed to have already been transformed to linear (not log) space.
+    Takes a list of chains (each expressed as an array of positions).
     Note that all chains should be the same length.
     """
 
@@ -175,7 +169,7 @@ def parameter_variance_estimates(chain_set):
 
     return (((n-1)/n) * W) + ((1/n) * B)
 
-def convergence_criterion(chain_set):
+def convergence_criterion(mcmc_set, mask=False, thin=1):
     r"""Calculate the Gelman-Rubin convergence criterion, defined as
 
     .. math::
@@ -184,15 +178,50 @@ def convergence_criterion(chain_set):
 
     which should decline to 1 as the number of simulation steps is increased.
 
-    Takes a list of chains (each expressed as an array of positions,
-    presumed to have already been transformed to linear (not log) space.
-    Note that all chains should be the same length.
+    Parameters
+    ----------
+    mcmc_set : list of bayessb.MCMC
+        The list of MCMC objects representing completed runs of estimation.
+        There should be more than one, and all should be the same length.
+    mask : bool/int, optional
+        If True (default), the first half of the walk will be discarded.
+        If False, none of the steps of the walk will be discarded.
+        If an integer, specifies the number of steps to be discarded from the
+        beginning of the walk.
+    thin : int, optional
+        The amount of thinning to be applied to the walk. For a given value
+        k, only every k steps are sampled from the walk. The default is 1
+        (no thinning). Thinning reduces unwanted autocorrelations in parameter
+        values within a given walk.
     """
 
+    # Use the number of steps from the first MCMC in the list
+    if mask is True:
+        mask = mcmc_set[0].options.nsteps / 2
+    if mask is False:
+        mask = 0
+
+    # Iterate over the MCMC set, assembling a list of chains with the
+    # specified mask and thinning
+    chain_set = []
+    for mcmc in mcmc_set:
+        chain_set.append(mcmc.positions[mask::thin])
+
+    # Run the calculations on the chain set
     W = within_chain_variances(chain_set)
     var = parameter_variance_estimates(chain_set)
 
     return np.sqrt(var / W)
+
+
+# -- TESTS ---------------------------------------------------------
+# 
+# The following are tests of the convergence criterion calculations using
+# the simple data given below. These tests can be run with, e.g.
+#
+# > nosetests convergence.py
+
+test_data = [[1, 2, 3], [4, 5, 6]]
 
 def test_within_chain_variances():
     """Check the within-chain variance calculation using a simple example."""
