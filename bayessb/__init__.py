@@ -281,6 +281,7 @@ class MCMC(object):
                 and self.iter % self.options.hessian_period == 0):
                 try:
                     self.hessian = self.calculate_hessian()
+                    #self.hessian = self.calculate_inverse_covariance()
                     hessian_num = ((self.iter - self.options.anneal_length)
                                    // self.options.hessian_period)
                     self.hessians[hessian_num,:,:] = self.hessian;
@@ -418,6 +419,8 @@ class MCMC(object):
             # by a constant factor.
             step = (eig_vec / adj_eig_val ** 0.5).dot(step) \
                 * self.options.hessian_scale
+            #step = (eig_vec / adj_eig_val ** 0.5).dot(step) \
+            #    * self.options.hessian_scale * self.sig_value
         # the proposed position is our most recent accepted position plus the
         # step we just calculated
         return self.position + step
@@ -470,6 +473,10 @@ class MCMC(object):
         likelihood = self.calculate_likelihood(position)
         posterior = prior + likelihood * self.options.thermo_temp
         return posterior, prior, likelihood
+
+    def calculate_inverse_covariance(self):
+        covariance_matrix = np.cov(self.positions, rowvar=0)
+        return np.linalg.inv(covariance_matrix)
 
     def calculate_hessian(self, position=None):
         """Calculate the hessian of the posterior landscape.
@@ -526,7 +533,6 @@ class MCMC(object):
         if np.any(np.isnan(hessian)):
             raise HessianCalculationError("NaN encountered in hessian calculation")
         return hessian
-
 
 class HessianCalculationError(RuntimeError):
     pass
