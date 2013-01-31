@@ -260,7 +260,9 @@ class MCMC(object):
         hessian_steps = self.options.nsteps - self.options.anneal_length
         num_hessians = int(math.ceil(float(hessian_steps)
                                      / self.options.hessian_period))
-        self.hessians = np.empty((num_hessians, self.num_estimate, self.num_estimate))
+        # initialize to zeros so we can see where there were failures
+        self.hessians = np.zeros((num_hessians,
+                                  self.num_estimate, self.num_estimate))
 
     def init_solver(self):
         """Initialize solver from model and tspan."""
@@ -538,10 +540,11 @@ class MCMC(object):
                 bf = self.calculate_posterior(position_bf)[0]
                 bb = self.calculate_posterior(position_bb)[0]
                 hessian[i,j] = (ff - fb - bf + bb) / (4 * d ** 2)
-                # hessian is symmetric, so we copy the value to the transposed location
+                # hessian is symmetric, so mirror the value across the diagonal
                 hessian[j,i] = hessian[i,j]
-        if np.any(np.isnan(hessian)):
-            raise HessianCalculationError("NaN encountered in hessian calculation")
+        if np.any(np.isnan(hessian) | np.isinf(hessian)):
+            raise HessianCalculationError(
+                "numerical instability encountered in hessian calculation")
         return hessian
 
 class HessianCalculationError(RuntimeError):
