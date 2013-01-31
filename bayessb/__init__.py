@@ -309,13 +309,25 @@ class MCMC(object):
             # -------ADJUSTING SIGMA & TEMPERATURE (ANNEALING)--------
             # XXX why did I move this first bit outside the iter<anneal_length test (below)?
             if self.iter % self.options.sigma_adj_interval == 0:
-                accept_rate = float(self.acceptance) / (self.iter + 1)
+
+                # Calculate the acceptance rate only over the recent steps
+                # unless we haven't done enough steps yet
+                window = 200. # FIXME FIXME make this into an option
+                if self.iter < window:
+                    accept_rate = float(self.acceptance) / (self.iter + 1)
+                else:
+                    accept_rate = np.sum(self.accepts[(self.iter - window): 
+                                            self.iter]) / float(window)
+
                 if accept_rate < self.options.accept_rate_target:
                     if self.sig_value > self.options.sigma_min:
-                        self.sig_value -= self.options.sigma_step
+                        #self.sig_value -= self.options.sigma_step
+                        self.sig_value *= self.options.sigma_step
                 else:
                     if self.sig_value < self.options.sigma_max:
-                        self.sig_value += self.options.sigma_step
+                        #self.sig_value += self.options.sigma_step
+                        self.sig_value *= (1. / self.options.sigma_step)
+
             if self.iter < self.options.anneal_length:
                 self.T = 1 + (self.options.T_init - 1) * math.e ** (-self.iter * self.T_decay)
                 
@@ -418,9 +430,7 @@ class MCMC(object):
             # square root of the eigenvalues. length is furthermore scaled down
             # by a constant factor.
             step = (eig_vec / adj_eig_val ** 0.5).dot(step) \
-                * self.options.hessian_scale
-            #step = (eig_vec / adj_eig_val ** 0.5).dot(step) \
-            #    * self.options.hessian_scale * self.sig_value
+                * self.options.hessian_scale * self.sig_value
         # the proposed position is our most recent accepted position plus the
         # step we just calculated
         return self.position + step
