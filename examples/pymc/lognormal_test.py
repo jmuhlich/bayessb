@@ -1,3 +1,6 @@
+"""A file to make sure we are setting the mean and variance for PyMC
+Lognormal variables correctly--since we are used to describing them with
+the mean and variance in log base 10."""
 from pymc import deterministic, stochastic, MvNormal, Normal, Lognormal, Uniform
 from pymc import MCMC, Model
 import numpy as np
@@ -8,7 +11,6 @@ from pylab import *
 # (has mean around 1e2, with a variance of 9 logs in base 10)
 mean_b10 = 2
 var_b10 = 9
-
 
 print "Setting mean (base 10) to %f, variance (base 10) to %f" % (mean_b10, var_b10)
 
