@@ -111,10 +111,11 @@ def scatter(mcmc, mask=True):
     # TODO: would axis('scaled') force the aspect ratio we want?
     plt.show()
 
-def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1, step=1,
+def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
+         margin=0.1, bounds0=None, bounds1=None, zmax=None, parallelize=True,
          gridsize=20):
     """
-    Display the posterior of an MCMC walk as a 3-D surface.
+    Display the posterior of an MCMC walk on a 3-D surface.
 
     Parameters
     ----------
@@ -126,14 +127,36 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1, step=1,
         before plotting. If False, nothing will be discarded and all points will
         be plotted. If an integer, specifies the number of steps to be discarded
         from the beginning of the walk.
+    walk : bool, optional
+        If True (default) render the walk positions. If False, do not render it.
+    step : int, optional
+        Render every `step`th positions along the walk. Defaults to 1 (render
+        all positions). Useful to improve performance with very long walks.
     square_aspect : bool, optional
         If True (default) the X and Y scales of the plot will be equal, allowing
         for direct comparison of moves in the corresponding parameter axes. If
         False the scales will auto-adjust to fit the data tightly, allowing for
         visualization of the full variance along both axes.
     margin : float, optional
-        Fraction of the X and Y ranges to add as padding to the plot. Defaults
-        to 0.1.
+        Fraction of the X and Y ranges to add as padding to the surface, beyond
+        the range of the points in the walk. Defaults to 0.1. Negative values
+        are allowed.
+    bounds0, bounds1 : array-like, optional
+        Explicit ranges (min, max) for X and Y axes. Specifying either disables
+        `square_aspect`.
+    zmax : float, optional
+        Maximum height (posterior value) for the sampled surface, and the upper
+        limit for the Z axis of the plot. Any surface points above this value
+        will not be rendered.
+    parallelize : bool, optional
+        If True (default), use the multiprocessing module to calculate the
+        posterior surface in parallel using all available CPU cores. If False,
+        do not parallelize.
+    gridsize : int, optional
+        Number of points along each axis at which to sample the posterior
+        surface. The total number of samples will be `gridsize`**2. Defaults to
+        20. Increasing this value will produce a smoother posterior surface at
+        the expense of more computational time.
     """
     # mask off the annealing (burn-in) phase, or up to a user-specified step
     if mask is True:
@@ -150,7 +173,7 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1, step=1,
     # build grid of points for sampling the posterior surface
     pos_min = positions.min(0)
     pos_max = positions.max(0)
-    if square_aspect:
+    if square_aspect and bounds0 is None and bounds1 is None:
         # enforce square aspect ratio in X-Y plane by recomputing pos_min/max
         pos_max_range = numpy.max(pos_max - pos_min)
         pos_mean = numpy.mean([pos_min, pos_max], 0)
@@ -159,6 +182,10 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1, step=1,
     margin_offset = (pos_max - pos_min) * margin
     pos_min -= margin_offset
     pos_max += margin_offset
+    if bounds0 is not None:
+        pos_min[0], pos_max[0] = bounds0
+    if bounds1 is not None:
+        pos_min[1], pos_max[1] = bounds1
     p0_vals = numpy.linspace(pos_min[0], pos_max[0], gridsize)
     p1_vals = numpy.linspace(pos_min[1], pos_max[1], gridsize)
     p0_mesh, p1_mesh = numpy.meshgrid(p0_vals, p1_vals)
@@ -169,27 +196,39 @@ def surf(mcmc, dim0, dim1, mask=True, square_aspect=True, margin=0.1, step=1,
     idx_iter = itertools.product(range(gridsize), range(gridsize))
     inputs = ((p0_mesh[i0, i1], p1_mesh[i0, i1]) for i0, i1 in idx_iter)
     inputs = itertools.product([mcmc], [position_base], [dim0], [dim1], inputs)
-    try:
-        pool = multiprocessing.Pool()
-        outputs = pool.map(surf_calc_mesh_pos, inputs)
-        pool.close()
-    except KeyboardInterrupt:
-        pool.terminate()
-        raise
+    map_args = surf_calc_mesh_pos, inputs
+    if parallelize:
+        try:
+            pool = multiprocessing.Pool()
+            outputs = pool.map(*map_args)
+            pool.close()
+        except KeyboardInterrupt:
+            pool.terminate()
+            raise
+    else:
+        outputs = map(*map_args)
     for i0 in range(gridsize):
         for i1 in range(gridsize):
             posterior_mesh[i0, i1] = outputs[i0 * gridsize + i1]
+    posterior_mesh[numpy.isinf(posterior_mesh)] = 'nan'
+    if zmax is None:
+        zmax = numpy.nanmax(posterior_mesh)
+    posterior_mesh[posterior_mesh > zmax] = 'inf'
+    posterior_mesh[numpy.isnan(posterior_mesh)] = 'inf'
     # plot 3-D surface
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    ax.plot_surface(p0_mesh, p1_mesh, posterior_mesh, rstride=1, cstride=1,
-                    cmap=matplotlib.cm.jet, linewidth=0.02, alpha=0.2)
-    ax.plot(positions[accepts,0], positions[accepts,1], posteriors[accepts],
-            c='k')
-    ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
-               marker='x', c='k', alpha=0.3)
-    ax.set_xlabel('ln(%s)' % mcmc.options.estimate_params[dim0].name)
-    ax.set_ylabel('ln(%s)' % mcmc.options.estimate_params[dim1].name)
+    polys = ax.plot_surface(p0_mesh, p1_mesh, posterior_mesh,
+                            rstride=1, cstride=1, cmap=matplotlib.cm.jet,
+                            linewidth=0.02, alpha=0.2, vmax=zmax)
+    if walk:
+        ax.plot(positions[accepts,0], positions[accepts,1], posteriors[accepts],
+                c='k')
+        ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
+                   marker='x', c='k', alpha=0.3)
+    ax.set_zbound(upper=zmax)
+    ax.set_xlabel('log10(%s) [dim0]' % mcmc.options.estimate_params[dim0].name)
+    ax.set_ylabel('log10(%s) [dim1]' % mcmc.options.estimate_params[dim1].name)
     ax.set_zlabel('-ln(posterior)')
     plt.show()
 
