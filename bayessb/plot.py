@@ -112,8 +112,8 @@ def scatter(mcmc, mask=True):
     plt.show()
 
 def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
-         margin=0.1, bounds0=None, bounds1=None, zmax=None, parallelize=True,
-         gridsize=20):
+         margin=0.1, bounds0=None, bounds1=None, zmin=None, zmax=None,
+         parallelize=True, gridsize=20):
     """
     Display the posterior of an MCMC walk on a 3-D surface.
 
@@ -144,10 +144,11 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
     bounds0, bounds1 : array-like, optional
         Explicit ranges (min, max) for X and Y axes. Specifying either disables
         `square_aspect`.
-    zmax : float, optional
-        Maximum height (posterior value) for the sampled surface, and the upper
-        limit for the Z axis of the plot. Any surface points above this value
-        will not be rendered.
+    zmin, zmax : float, optional
+        Max/min height (posterior value) for the sampled surface, and the limits
+        for the Z axis of the plot. Any surface points outside this range will
+        not be rendered. Defaults to the actual range of posterior values from
+        the walk and the sampled surface.
     parallelize : bool, optional
         If True (default), use the multiprocessing module to calculate the
         posterior surface in parallel using all available CPU cores. If False,
@@ -211,22 +212,29 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
         for i1 in range(gridsize):
             posterior_mesh[i0, i1] = outputs[i0 * gridsize + i1]
     posterior_mesh[numpy.isinf(posterior_mesh)] = 'nan'
-    if zmax is None:
-        zmax = numpy.nanmax(posterior_mesh)
-    posterior_mesh[posterior_mesh > zmax] = 'inf'
-    posterior_mesh[numpy.isnan(posterior_mesh)] = 'inf'
+    if zmin is not None:
+        posterior_mesh[(posterior_mesh < zmin)] = 'nan'
+    if zmax is not None:
+        posterior_mesh[(posterior_mesh > zmax)] = 'nan'
+    pmesh_min = numpy.nanmin(posterior_mesh)
+    pmesh_max = numpy.nanmax(posterior_mesh)
+    ###posterior_mesh[numpy.isnan(posterior_mesh)] = 'inf'
     # plot 3-D surface
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     polys = ax.plot_surface(p0_mesh, p1_mesh, posterior_mesh,
                             rstride=1, cstride=1, cmap=matplotlib.cm.jet,
-                            linewidth=0.02, alpha=0.2, vmax=zmax)
+                            linewidth=0.02, alpha=0.2,
+                            vmin=pmesh_min, vmax=pmesh_max)
     if walk:
         ax.plot(positions[accepts,0], positions[accepts,1], posteriors[accepts],
                 c='k')
         ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
                    marker='x', c='k', alpha=0.3)
-    ax.set_zbound(upper=zmax)
+    if zmin is not None:
+        ax.set_zbound(zmin, ax.get_zbound()[1])
+    if zmax is not None:
+        ax.set_zbound(upper=zmax)
     ax.set_xlabel('log10(%s) [dim0]' % mcmc.options.estimate_params[dim0].name)
     ax.set_ylabel('log10(%s) [dim1]' % mcmc.options.estimate_params[dim1].name)
     ax.set_zlabel('-ln(posterior)')
