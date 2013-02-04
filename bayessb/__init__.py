@@ -109,47 +109,6 @@ class MCMC(object):
 
     def __init__(self, options):
         self.options = self.validate(options)
-        self.initial_values = None
-        self.initial_position = None
-        self.position = None  # log-transform of "actual" phase space
-        self.test_position = None
-        self.num_estimate = None
-        self.estimate_idx = None
-        self.acceptance = None
-        self.T_decay = None
-        self.T = None
-        self.sig_value = 1.0
-        self.iter = 0
-        self.start_iter = 0
-        self.ode_options = {}
-        self.random = None  # random number generator
-        self.solver = None
-
-        # likelihood, prior, and posterior are also all log-transformed
-        self.initial_likelihood = None
-        self.initial_prior = None
-        self.initial_posterior = None
-        self.accept_prior = None
-        self.accept_likelihood = None
-        self.accept_posterior = None
-        self.test_likelihood = None
-        self.test_prior = None
-        self.test_posterior = None
-
-        self.hessian = None
-
-        # "logs" for some values we'd like to keep track of across iterations
-        self.positions = None
-        self.priors = None
-        self.likelihoods = None
-        self.posteriors = None
-        self.alphas = None
-        self.sigmas = None
-        self.delta_posteriors = None
-        self.ts = None
-        self.accepts = None
-        self.rejects = None
-        self.hessians = None
     
     def __getstate__(self):
         # clear solver since it causes problems with pickling
@@ -247,6 +206,8 @@ class MCMC(object):
         self.start_iter = 0;
         self.acceptance = 0;
         self.T = self.options.T_init;
+        self.sig_value = 1.0
+
         self.delta_posteriors = np.empty(self.options.nsteps)
         self.ts = np.empty(self.options.nsteps)
         self.priors = np.empty(self.options.nsteps)
