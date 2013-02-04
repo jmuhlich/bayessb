@@ -207,6 +207,7 @@ class MCMC(object):
         self.acceptance = 0;
         self.T = self.options.T_init;
         self.sig_value = 1.0
+        self.hessian = None
 
         self.delta_posteriors = np.empty(self.options.nsteps)
         self.ts = np.empty(self.options.nsteps)
