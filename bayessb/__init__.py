@@ -276,7 +276,7 @@ class MCMC(object):
 
                 # Calculate the acceptance rate only over the recent steps
                 # unless we haven't done enough steps yet
-                window = 200. # FIXME FIXME make this into an option
+                window = self.options.accept_window
                 if self.iter < window:
                     accept_rate = float(self.acceptance) / (self.iter + 1)
                 else:
@@ -584,7 +584,7 @@ class MCMCOpts(object):
         Minimum value for `MCMC.sig_value`. Defaults to a reasonable value.
     sigma_step : float, optional
         Increment for `MCMC.sig_value` adjustments. Defaults to a reasonable
-        value.
+        value. To eliminate adaptive step size, set sigma_step to 1.
     thermo_temp : float in the range [0,1], optional
         Temperature for thermodynamic integration support. Used to scale
         likelihood when calculating the posterior value. Defaults to 1.0,
@@ -593,6 +593,10 @@ class MCMCOpts(object):
         Seed for random number generator. Defaults to using a non-deterministic
         seed (see numpy.random.RandomState). If you want reproducible runs, you
         must set this to a constant value.
+    accept_window : int
+        The number of steps over which to calculate the current "local"
+        accept rate. If the local acceptance rate is too low or too high,
+        the step size is adjusted.
 
     """
 
@@ -622,6 +626,7 @@ class MCMCOpts(object):
         self.sigma_step         = 0.125
         self.thermo_temp        = 1
         self.seed               = None
+        self.accept_window      = 200
 
     def copy(self):
         new_options = MCMCOpts()
