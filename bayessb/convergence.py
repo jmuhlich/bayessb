@@ -206,7 +206,8 @@ def convergence_criterion(mcmc_set, mask=False, thin=1):
     chain_set = []
     min_accepts = np.inf
     for mcmc in mcmc_set:
-        mixed_accepts = mcmc.positions[mcmc.accepts[mask:]]
+        mixed_positions = mcmc.positions[mask:]
+        mixed_accepts = mixed_positions[mcmc.accepts[mask:]]
         thinned_accepts = mixed_accepts[::thin]
         chain_set.append(thinned_accepts)
 
