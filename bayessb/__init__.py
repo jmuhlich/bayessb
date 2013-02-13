@@ -509,6 +509,40 @@ class MCMC(object):
                 "numerical instability encountered in hessian calculation")
         return hessian
 
+    def get_mixed_accepts(self, mask, thin=1):
+        """A helper function that returns the thinned,
+        accepted positions after a user-specified burn-in period; also returns
+        the indices (step numbers) of each of the returned positions.
+
+        Parameters
+        ----------
+        mask : int
+            An integer specifying the number of steps to cut off from the
+            beginning of the walk.
+        thin : int
+            An integer specifying how to thin the accepted steps of the walk.
+            If 1, returns every step; if 2, every other step; if 5, every
+            fifth step, etc.
+
+        Returns
+        -------
+        A tuple of numpy.array objects. The first element in the tuple contains
+        the array of accepted positions, masked and thinned as required; the
+        second element contains a list of integers which indicate the indices
+        associated with each of the steps returned.
+        """
+
+        mixed_steps = np.array(range(mask, self.options.nsteps))    
+        mixed_positions = self.positions[mask:]
+
+        mixed_accepts = mixed_positions[self.accepts[mask:]]
+        mixed_accept_steps = mixed_steps[self.accepts[mask:]]
+
+        thinned_accepts = mixed_accepts[::thin]
+        thinned_accept_steps = mixed_accept_steps[::thin]
+
+        return (thinned_accepts, thinned_accept_steps)
+
 class HessianCalculationError(RuntimeError):
     pass
 
