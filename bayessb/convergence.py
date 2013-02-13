@@ -116,7 +116,7 @@ def within_chain_variances(chain_set):
 
     # Make sure that all chains are the same length
     check_chain_lengths(chain_set)
-            
+
     # Calculate each within-chain variance (s_j^2):
     chain_variances = []
     for chain in chain_set:
@@ -204,15 +204,25 @@ def convergence_criterion(mcmc_set, mask=False, thin=1):
     # Iterate over the MCMC set, assembling a list of chains with the
     # specified mask and thinning
     chain_set = []
+    min_accepts = np.inf
     for mcmc in mcmc_set:
-        chain_set.append(mcmc.positions[mask::thin])
+        mixed_accepts = mcmc.positions[mcmc.accepts[mask:]]
+        thinned_accepts = mixed_accepts[::thin]
+        chain_set.append(thinned_accepts)
+
+        if (len(thinned_accepts) < min_accepts):
+            min_accepts = len(thinned_accepts)
+
+    # Truncate the chains to make them all the length of the one with
+    # with the fewest accepts
+    for i, chain in enumerate(chain_set):
+        chain_set[i] = chain[len(chain) - min_accepts:]
 
     # Run the calculations on the chain set
     W = within_chain_variances(chain_set)
     var = parameter_variance_estimates(chain_set)
 
     return np.sqrt(var / W)
-
 
 # -- TESTS ---------------------------------------------------------
 # 
