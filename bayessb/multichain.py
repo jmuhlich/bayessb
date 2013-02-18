@@ -105,3 +105,33 @@ class MCMCSet(object):
         self.prune_all_chains(burn, thin)
         self.pool_chains()
 
+    def maximum_likelihood(self):
+        """Returns the maximum log likelihood (minimum negative log likelihood)
+        from the set of chains.
+        """
+        if not self.chains:
+            raise Exception("There are no chains in the MCMCSet.")
+
+        max_likelihood = np.inf
+        for chain in self.chains:
+            chain_max_likelihood = np.nanmin(chain.likelihoods)
+            if chain_max_likelihood < max_likelihood:
+                max_likelihood = chain_max_likelihood
+
+        return max_likelihood
+
+    def maximum_posterior(self):
+        """Returns the maximum log posterior (minimum negative log posterior)
+        from the set of chains.
+        """
+        if not self.chains:
+            raise Exception("There are no chains in the MCMCSet.")
+
+        max_posterior = np.inf
+        for chain in self.chains:
+            chain_max_posterior = np.nanmin(chain.posteriors)
+            if chain_max_posterior < max_posterior:
+                max_posterior = chain_max_posterior
+
+        return max_posterior
+
