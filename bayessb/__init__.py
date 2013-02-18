@@ -512,10 +512,16 @@ class MCMC(object):
     def prune(self, burn, thin=1):
         """Truncates the chain to the thinned, mixed, accepted positions.
 
+        Note that if the chain has already been pruned then this function does
+        nothing.
+
         Side Effects:
 
             - After this method is called, self.positions is (destructively) set
               to the mixed, accepted positions.
+            - The priors, likelihoods, and posteriors, sigmas, alphas, etc.
+              are modified to only record values for the mixed, accepted
+              positions.
             - The ``self.pruned`` field is set to True, indicating that the walk
               has been irreversibly pruned.
             - The indices of the thinned, mixed, accepted steps are recorded in
@@ -533,6 +539,17 @@ class MCMC(object):
         self.options.thin = thin
         self.pruned = True
         self.thinned_accept_steps = thinned_accept_steps
+
+        self.delta_posteriors = self.delta_posteriors[thinned_accept_steps]
+        self.ts = self.ts[thinned_accept_steps]
+        self.priors = self.priors[thinned_accept_steps]
+        self.likelihoods = self.likelihoods[thinned_accept_steps]
+        self.posteriors = self.posteriors[thinned_accept_steps]
+
+        self.alphas = self.alphas[thinned_accept_steps]
+        self.sigmas = self.sigmas[thinned_accept_steps]
+        self.accepts = self.accepts[thinned_accept_steps]
+        self.rejects = self.rejects[thinned_accept_steps]
 
     def get_mixed_accepts(self, burn, thin=1):
         """A helper function that returns the thinned,
