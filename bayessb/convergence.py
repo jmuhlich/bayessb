@@ -91,7 +91,6 @@ precision may be required."
 
 import numpy as np
 from nose.tools import eq_
-from pysb.report import reporter
 
 def check_chain_lengths(chain_set):
     """Checks to make sure there is more than one chain in the set, and that
@@ -170,7 +169,6 @@ def parameter_variance_estimates(chain_set):
 
     return (((n-1)/n) * W) + ((1/n) * B)
 
-@reporter('GR Convergence')
 def convergence_criterion(mcmc_set):
     r"""Calculate the Gelman-Rubin convergence criterion, defined as
 
@@ -195,6 +193,12 @@ def convergence_criterion(mcmc_set):
         k, only every k steps are sampled from the walk. The default is 1
         (no thinning). Thinning reduces unwanted autocorrelations in parameter
         values within a given walk.
+
+    Returns
+    -------
+    If there is only one chain, returns None; otherwise returns a numpy
+    array of the convergence criterion values (one value for each of the
+    estimated parameters).
     """
 
     # Make sure the MCMCSet is not empty
@@ -202,8 +206,7 @@ def convergence_criterion(mcmc_set):
         raise ValueError("There are no chains in the MCMCSet object.")
     # Make sure there is more than one chain
     if len(mcmc_set.chains) <= 1:
-        raise ValueError("There must be more than one chain to calculate " \
-                         "convergence.")
+        return None
     # Make sure the chains have been pruned
     if not mcmc_set.all_pruned():
         raise Exception("The chains should be pruned before calculating " \

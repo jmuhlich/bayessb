@@ -1,5 +1,4 @@
 import numpy as np
-from bayessb import convergence
 
 class MCMCSet(object):
     """Class for storage and management of multiple MCMC objects representing
