@@ -509,14 +509,42 @@ class MCMC(object):
                 "numerical instability encountered in hessian calculation")
         return hessian
 
-    def get_mixed_accepts(self, mask, thin=1):
+    def prune(self, burn, thin=1):
+        """Truncates the chain to the thinned, mixed, accepted positions.
+
+        Side Effects:
+
+            - After this method is called, self.positions is (destructively) set
+              to the mixed, accepted positions.
+            - The ``self.pruned`` field is set to True, indicating that the walk
+              has been irreversibly pruned.
+            - The indices of the thinned, mixed, accepted steps are recorded in
+              the field ``self.thinned_accept_steps``. This can be useful for
+              plotting walks from multiple chains.
+            - The values of the ``burn`` and ``thin`` parameters are recorded
+              in the options object as ``self.options.burn`` and
+              ``self.options.thin``.
+        """
+
+        (thinned_accepts, thinned_accept_steps) = \
+                            self.get_mixed_accepts(burn, thin)
+        self.positions = thinned_accepts
+        self.options.burn = burn
+        self.options.thin = thin
+        self.pruned = True
+        self.thinned_accept_steps = thinned_accept_steps
+
+    def get_mixed_accepts(self, burn, thin=1):
         """A helper function that returns the thinned,
         accepted positions after a user-specified burn-in period; also returns
         the indices (step numbers) of each of the returned positions.
 
+        Use this method instead of ``self.prune`` if you want to get the
+        mixed accepted steps without discarding all of the other ones.
+
         Parameters
         ----------
-        mask : int
+        burn : int
             An integer specifying the number of steps to cut off from the
             beginning of the walk.
         thin : int
@@ -527,16 +555,16 @@ class MCMC(object):
         Returns
         -------
         A tuple of numpy.array objects. The first element in the tuple contains
-        the array of accepted positions, masked and thinned as required; the
+        the array of accepted positions, burned and thinned as required; the
         second element contains a list of integers which indicate the indices
         associated with each of the steps returned.
         """
 
-        mixed_steps = np.array(range(mask, self.options.nsteps))    
-        mixed_positions = self.positions[mask:]
+        mixed_steps = np.array(range(burn, self.options.nsteps))    
+        mixed_positions = self.positions[burn:]
 
-        mixed_accepts = mixed_positions[self.accepts[mask:]]
-        mixed_accept_steps = mixed_steps[self.accepts[mask:]]
+        mixed_accepts = mixed_positions[self.accepts[burn:]]
+        mixed_accept_steps = mixed_steps[self.accepts[burn:]]
 
         thinned_accepts = mixed_accepts[::thin]
         thinned_accept_steps = mixed_accept_steps[::thin]
