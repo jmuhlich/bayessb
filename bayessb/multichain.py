@@ -29,9 +29,14 @@ class MCMCSet(object):
         """Iterates over all the chains and prunes each one with the
         specified arguments.
         """
-
         for chain in self.chains:
             chain.prune(burn, thin)
+
+        # If any chains are empty after pruning (i.e., there were no accepts)
+        # then remove them from the list
+        for chain in self.chains:
+            if len(chain.positions) == 0:
+                self.chains.remove(chain)
 
     def all_pruned(self):
         """Indicates whether all chains have been pruned already.
