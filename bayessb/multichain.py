@@ -35,7 +35,12 @@ class MCMCSet(object):
             chain.prune(burn, thin)
 
     def all_pruned(self):
-        """Indicates whether all chains have been pruned already."""
+        """Indicates whether all chains have been pruned already.
+        """
+
+        if not self.chains:
+            raise Exception("There are no chains in the MCMCSet.")
+
         for chain in self.chains:
             if not chain.pruned:
                 return False
@@ -100,18 +105,3 @@ class MCMCSet(object):
         self.prune_all_chains(burn, thin)
         self.pool_chains()
 
-    def convergence_criterion(self):
-        """Calculates the convergence criterion for the chain set after
-        they have been pruned."""
-        # Some checks on our set of chains before we proceed:
-        if not self.chains:
-            raise Exception("There are no chains in the MCMCSet.")
-        if len(self.chains) <= 1:
-            raise Exception("Cannot calculate convergence with only one chain.")
-        for chain in self.chains:
-            if not chain.pruned:
-                raise Exception("The chains have not yet been pruned.")
-        
-        # Don't mask or thin the chains as they have already been pruned
-        return convergence.convergence_criterion(self.chains,
-                                                 mask=False, thin=1)

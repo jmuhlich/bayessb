@@ -91,6 +91,7 @@ precision may be required."
 
 import numpy as np
 from nose.tools import eq_
+from pysb.report import reporter
 
 def check_chain_lengths(chain_set):
     """Checks to make sure there is more than one chain in the set, and that
@@ -169,7 +170,8 @@ def parameter_variance_estimates(chain_set):
 
     return (((n-1)/n) * W) + ((1/n) * B)
 
-def convergence_criterion(mcmc_set, mask=False, thin=1):
+@reporter('GR Convergence')
+def convergence_criterion(mcmc_set):
     r"""Calculate the Gelman-Rubin convergence criterion, defined as
 
     .. math::
@@ -180,9 +182,9 @@ def convergence_criterion(mcmc_set, mask=False, thin=1):
 
     Parameters
     ----------
-    mcmc_set : list of bayessb.MCMC
-        The list of MCMC objects representing completed runs of estimation.
-        There should be more than one, and all should be the same length.
+    mcmc_set : bayessb.multichain.MCMCSet
+        The set of MCMC objects representing completed runs of estimation.
+        There should be more than one in the set.
     mask : bool/int, optional
         If True (default), the first half of the walk will be discarded.
         If False, none of the steps of the walk will be discarded.
@@ -195,24 +197,26 @@ def convergence_criterion(mcmc_set, mask=False, thin=1):
         values within a given walk.
     """
 
-    # Use the number of steps from the first MCMC in the list
-    if mask is True:
-        mask = mcmc_set[0].options.nsteps / 2
-    if mask is False:
-        mask = 0
+    # Make sure the MCMCSet is not empty
+    if not mcmc_set.chains:
+        raise ValueError("There are no chains in the MCMCSet object.")
+    # Make sure there is more than one chain
+    if len(mcmc_set.chains) <= 1:
+        raise ValueError("There must be more than one chain to calculate " \
+                         "convergence.")
+    # Make sure the chains have been pruned
+    if not mcmc_set.all_pruned():
+        raise Exception("The chains should be pruned before calculating " \
+                        "convergence.")
 
-    # Iterate over the MCMC set, assembling a list of chains with the
-    # specified mask and thinning
+    # Iterate over the MCMC set to find the minimum number of steps
+    # in the set
     chain_set = []
     min_accepts = np.inf
-    for mcmc in mcmc_set:
-        mixed_positions = mcmc.positions[mask:]
-        mixed_accepts = mixed_positions[mcmc.accepts[mask:]]
-        thinned_accepts = mixed_accepts[::thin]
-        chain_set.append(thinned_accepts)
-
-        if (len(thinned_accepts) < min_accepts):
-            min_accepts = len(thinned_accepts)
+    for chain in mcmc_set.chains:
+        chain_set.append(np.copy(chain.positions))
+        if (len(chain.positions) < min_accepts):
+            min_accepts = len(chain.positions)
 
     # Truncate the chains to make them all the length of the one with
     # with the fewest accepts
