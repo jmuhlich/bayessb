@@ -34,6 +34,13 @@ class MCMCSet(object):
         for chain in self.chains:
             chain.prune(burn, thin)
 
+    def all_pruned(self):
+        """Indicates whether all chains have been pruned already."""
+        for chain in self.chains:
+            if not chain.pruned:
+                return False
+        return True
+
     def pool_chains(self):
         """Pool the chains into a single set of pooled positions stored along
         with the MCMCSet.
