@@ -111,31 +111,39 @@ class MCMCSet(object):
 
     def maximum_likelihood(self):
         """Returns the maximum log likelihood (minimum negative log likelihood)
-        from the set of chains.
+        from the set of chains, along with the position giving the maximum
+        likelihood.
         """
         if not self.chains:
             raise Exception("There are no chains in the MCMCSet.")
 
         max_likelihood = np.inf
         for chain in self.chains:
-            chain_max_likelihood = np.nanmin(chain.likelihoods)
+            chain_max_likelihood_index = np.nanargmin(chain.likelihoods)
+            chain_max_likelihood = \
+                            chain.likelihoods[chain_max_likelihood_index]
             if chain_max_likelihood < max_likelihood:
                 max_likelihood = chain_max_likelihood
-
-        return max_likelihood
+                max_likelihood_position = \
+                            chain.positions[chain_max_likelihood_index]
+        return (max_likelihood, max_likelihood_position)
 
     def maximum_posterior(self):
         """Returns the maximum log posterior (minimum negative log posterior)
-        from the set of chains.
+        from the set of chains, along with the position giving the maximum
+        posterior.
         """
         if not self.chains:
             raise Exception("There are no chains in the MCMCSet.")
 
         max_posterior = np.inf
         for chain in self.chains:
-            chain_max_posterior = np.nanmin(chain.posteriors)
+            chain_max_posterior_index = np.nanargmin(chain.posteriors)
+            chain_max_posterior = \
+                            chain.posteriors[chain_max_posterior_index]
             if chain_max_posterior < max_posterior:
                 max_posterior = chain_max_posterior
-
-        return max_posterior
+                max_posterior_position = \
+                            chain.positions[chain_max_posterior_index]
+        return (max_posterior, max_posterior_position)
 
