@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from pysb.report import reporter, Result
+from bayessb.report import reporter, Result
 from bayessb import convergence
 from StringIO import StringIO
 
