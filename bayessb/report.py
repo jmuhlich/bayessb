@@ -2,10 +2,31 @@ import numpy as np
 from matplotlib import pyplot as plt
 from pysb.report import reporter, Result
 from bayessb import convergence
+from StringIO import StringIO
 
 @reporter('Number of chains')
 def num_chains(mcmc_set):
     return Result(len(mcmc_set.chains), None)
+
+@reporter('Estimation parameters')
+def estimation_parameters(mcmc_set):
+    chain = mcmc_set.chains[0]
+    opts = chain.options
+    output = StringIO()
+    output.write("use_hessian: %s, " % opts.use_hessian)
+    output.write("hessian_period: %s, " % opts.hessian_period)
+    output.write("hessian_scale: %s, " % opts.hessian_scale)
+    output.write("norm_step_size: %s, " % opts.norm_step_size)
+    output.write("sigma_adj_interval: %s, " % opts.sigma_adj_interval)
+    output.write("anneal_length: %s, " % opts.anneal_length)
+    output.write("T_init: %s, " % opts.T_init)
+    output.write("accept_rate_target: %s, " % opts.accept_rate_target)
+    output.write("sigma_max: %s, " % opts.sigma_max)
+    output.write("sigma_min: %s, " % opts.sigma_min)
+    output.write("sigma_step: %s, " % opts.sigma_step)
+    output.write("seed: %s, " % opts.seed)
+    #output.write("accept_window: %s, " % opts.accept_window)
+    return Result(output.getvalue(), None)
 
 @reporter('Conv. Criterion')
 def convergence_criterion(mcmc_set):
