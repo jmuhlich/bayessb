@@ -18,8 +18,13 @@ class MCMCSet(object):
         """
 
         self.name = name
+        """The name associated with this set of chains (e.g., the model
+        name, fit parameters, etc.)"""
         self.chains = []
+        """The list of chains in the MCMC set."""
         self.pooled_positions = None
+        """numpy array of the pooled positions (if ``pool_positions`` is
+        called)."""
 
     def add_chain(self, chain):
         """Add an MCMC chain to the set."""
@@ -150,4 +155,3 @@ class MCMCSet(object):
                 max_posterior_position = \
                             chain.positions[chain_max_posterior_index]
         return (max_posterior, max_posterior_position)
-
