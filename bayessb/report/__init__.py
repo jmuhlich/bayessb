@@ -269,7 +269,7 @@ class FloatListResult(Result):
 
     In particular, specifies the precision at which they should be displayed.
     """
-    def __init__(self, value, link, precision=1):
+    def __init__(self, value, link, precision=2):
         """Create the FloatListResult object.
 
         Parameters
@@ -303,8 +303,9 @@ class FloatListResult(Result):
         if self.value is None:
             result_str = self.value
         else:
+            format_str = '%%.%dg' % self.precision
             result_str = '['
-            result_str += ', '.join([str(f) for f in self.value])
+            result_str += ', '.join([format_str % f for f in self.value])
             result_str += ']'
 
         if self.link is not None:
