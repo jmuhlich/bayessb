@@ -4,10 +4,13 @@ from bayessb.report import reporter, Result
 from bayessb import convergence
 from StringIO import StringIO
 
+reporter_group_name = "Estimation"
+
 @reporter('Number of chains')
 def num_chains(mcmc_set):
     return Result(len(mcmc_set.chains), None)
 
+"""
 @reporter('Estimation parameters')
 def estimation_parameters(mcmc_set):
     chain = mcmc_set.chains[0]
@@ -27,6 +30,7 @@ def estimation_parameters(mcmc_set):
     output.write("seed: %s, " % opts.seed)
     #output.write("accept_window: %s, " % opts.accept_window)
     return Result(output.getvalue(), None)
+"""
 
 @reporter('Conv. Criterion')
 def convergence_criterion(mcmc_set):

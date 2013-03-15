@@ -37,28 +37,41 @@ class Report(object):
         """
 
         self.chain_filenames = chain_filenames
+        """dict of lists of MCMC filenames."""
+        self.module_names = []
+        """List of module names that parallels that of the reporter names."""
+        self.reporters = []
+        """List of reporter functions to run on the chains."""
+        self.names = None
+        """List of the different types of models/fits reported on."""
+        self.results = []
+        """List of lists containing the results of reporter execution."""
 
         # Unpack reporter modules, adding any reporter functions found
-        self.reporters = []
         for reporter in reporters:
             if ismodule(reporter):
                 self.reporters += reporter_dict[reporter.__name__]
+                if hasattr(reporter, 'reporter_group_name'):
+                    module_name = reporter.reporter_group_name
+                else:
+                    module_name = reporter.__name__
+                self.module_names += [module_name] * \
+                                     len(reporter_dict[reporter.__name__])
             else:
                 self.reporters.append(reporter)
+                # FIXME FIXME Fix this to sniff out the module for the
+                # reporter function that was passed in
+                self.module_names.append("Not given")
 
-        # Initialize names
+        # Initialize reporter names and module names
         if names is None:
-            self.names = chain_filenames.keys()
+            self.names = [n.replace('_', ' ') for n in chain_filenames.keys()]
             #self.names = [c.options.model.name for c in chains]
         else:
             self.names = names
 
-        # Add an empty column to make room for the reporter names
-        self.header_names = [''] + self.names
-
         # Run the reports
         reporter_names = [r.reporter_name for r in self.reporters]
-        self.results = [reporter_names]
         for chain_list_name, chain_list in self.chain_filenames.iteritems():
             self.get_results_for_chain_set(chain_list_name, chain_list)
 
@@ -91,6 +104,8 @@ class Report(object):
 
     def get_text_table(self, max_width=80):
         """Return the report results as a pretty-printed text table."""
+        # TODO This will have to be written because structure of results
+        # table has changed
         tt = Texttable(max_width=max_width)
         tt.header(self.header_names)
 
@@ -108,7 +123,8 @@ class Report(object):
         filename : string
             The name of the output filename.
         """
-
+        # TODO This will have to be written because structure of results
+        # table has changed
         lines = []
         for row in self.results:
             lines.append(tf.TableRow(*map(tf.Cell, row)))
@@ -128,19 +144,16 @@ class Report(object):
         """
 
         lines = []
-        for row in self.results:
+        for i, row in enumerate(self.results):
             html_row = []
+            html_row.append(self.reporters[i].name)
             for result in row:
                 # Here we assume it's a pysb.report.Result object
-                if hasattr(result, 'link'):
-                    if result.link is None:
-                        html_row.append(result.value)
-                    else:
-                        html_row.append('<a href=\'%s\'>%s</a>' %
-                                        (result.link, result.value))
-                # Handle the case of the row header
-                else: 
-                    html_row.append(result)
+                if result.link is None:
+                    html_row.append(result.value)
+                else:
+                    html_row.append('<a href=\'%s\'>%s</a>' %
+                                    (result.link, result.value))
 
             lines.append(tf.TableRow(*map(tf.Cell, html_row)))
 
@@ -154,46 +167,52 @@ class Report(object):
         hyperlinks (the TableFactory version escapes the markup)
         """
         # Add some formatting for the overall page
-        lines = '<html><head>' \
-                '<style type="text/css"><!-- ' \
-                'BODY { font-family: sans-serif; } --></style><body>'
+        lines = """<!DOCTYPE html>
+                <html>
+                <head>
+                    <style type="text/css">
+                        body { font-family: sans-serif; font-size: 10pt}
+                        table { border-collapse: collapse; }
+                        th { align: left; font-weight: bold; vertical-align: top}
+                        td, th { border: 1px solid #aaa; padding: 0.2em; }
+                    </style>
+                </head>
+                <body>"""
 
-        lines += "<table border=1>"
+        lines += "<table>"
 
-        # Add the headers
-        header_string = "<tr><td>"
-        header_string += '</td><td>'.join([h for h in self.header_names])
-        header_string += "</td></tr>"
+        # Add two empty columns to headers to allow for reporter and module
+        headers = ['', ''] + self.names
+        header_string = "<tr><th>"
+        header_string += '</th><th>'.join(headers)
+        header_string += "</th></tr>"
         lines += header_string
 
-        for row in self.results:
+        prev_module_name = None
+        for i, row in enumerate(self.results):
             html_row = []
-            html_row_string = "<tr><td>"
+            html_row_string = '<tr>'
+            cur_module_name = self.module_names[i]
+
+            # Group the results for a reporter group into a rowspan
+            if prev_module_name != cur_module_name:
+                rowspan = 1
+                while (i + rowspan) < len(self.module_names) and \
+                      self.module_names[i+rowspan] == cur_module_name:
+                    rowspan += 1
+                html_row_string += '<th rowspan="%d">%s</th>' % \
+                                   (rowspan, cur_module_name)
+            prev_module_name = cur_module_name
+
+            # Add the row header showing the name of the current reporter
+            html_row_string += '<th>%s</th>' % self.reporters[i].reporter_name
+
+            # Add the HTML-ified result
             for result in row:
-                # Here we assume it's a pysb.report.Result object
-                if hasattr(result, 'link'):
-                    # Format the result
-                    if isinstance(result.value, float):
-                        result_str = '%-.2f' % result.value
-                    elif isinstance(result.value, bool):
-                        if result.value:
-                            result_str = 'True'
-                        else:
-                            result_str = 'False'
-                    else:
-                        result_str = str(result.value)
+                html_row.append(result.get_html())
 
-                    if result.link is None:
-                        html_row.append(result_str)
-                    else:
-                        html_row.append("<a href='%s'>%s</a>" %
-                                        (result.link, result_str))
-                # Handle the case of the row header
-                else:
-                    html_row.append(str(result))
-
-            html_row_string += '</td><td>'.join(html_row)
-            html_row_string += '</td></tr>'
+            html_row_string += '\n'.join(html_row)
+            html_row_string += '</tr>\n\n'
             lines += html_row_string
         lines += "</table>"
 
@@ -219,6 +238,32 @@ class Result(object):
         """
         self.value = value
         self.link = link
+
+    def get_html(self):
+        """Returns the default HTML string for the table cell to contain the result.
+
+        Returns
+        -------
+        string
+            A string containing the HTML for the table cell, including the
+            opening and closing (<td>...</td>) tags.
+        """
+        # Format the result
+        result_str = ''
+        if isinstance(self.value, float):
+            result_str = '%-.2f' % self.value
+        elif isinstance(self.value, bool):
+            if self.value:
+                result_str = 'True'
+            else:
+                result_str = 'False'
+        else:
+            result_str = self.value
+
+        if self.link is not None:
+            result_str = '<a href="%s">%s</a>' % (self.link, result_str)
+
+        return '<td>%s</td>' % result_str
 
 # DECORATOR
 def reporter(name):
