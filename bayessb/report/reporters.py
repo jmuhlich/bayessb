@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from bayessb.report import reporter, Result
+from bayessb.report import reporter, Result, FloatListResult
 from bayessb import convergence
 from StringIO import StringIO
 
@@ -68,7 +68,8 @@ def convergence_criterion(mcmc_set):
     with open(html_filename, 'w') as f:
         f.write(html_str)
 
-    return Result(convergence.convergence_criterion(mcmc_set), html_filename)
+    return FloatListResult(convergence.convergence_criterion(mcmc_set),
+                           html_filename)
 
 @reporter('Maximum likelihood')
 def maximum_likelihood(mcmc_set):

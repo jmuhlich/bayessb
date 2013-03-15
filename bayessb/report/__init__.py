@@ -262,7 +262,53 @@ class Result(object):
 
         if self.link is not None:
             result_str = '<a href="%s">%s</a>' % (self.link, result_str)
+        return '<td>%s</td>' % result_str
 
+class FloatListResult(Result):
+    """Implements formatting for a list of floating point values.
+
+    In particular, specifies the precision at which they should be displayed.
+    """
+    def __init__(self, value, link, precision=1):
+        """Create the FloatListResult object.
+
+        Parameters
+        ----------
+        value : anything
+            The return value of a reporter function.
+        link : string
+            String representing a hyperlink, e.g. to information or
+            visualizations supporting the reporter result.
+        precision : int
+            The number of decimal places to display for each entry in the
+            list of values.
+        """
+        Result.__init__(self, value, link)
+        self.precision = precision
+
+    def get_html(self):
+        """Returns the HTML string for the table cell to contain the result.
+
+        The string representation of the floating point list is of the form
+        "<td>[xxx.xx, x.xx, xx.xx, ...]</td>, where the precision (number of
+        x's after decimal point) is controlled by the value assigned to the
+        property ``precision``.
+
+        Returns
+        -------
+        string
+            A string containing the HTML for the table cell, including the
+            opening and closing (<td>...</td>) tags.
+        """
+        if self.value is None:
+            result_str = self.value
+        else:
+            result_str = '['
+            result_str += ', '.join([str(f) for f in self.value])
+            result_str += ']'
+
+        if self.link is not None:
+            result_str = '<a href="%s">%s</a>' % (self.link, result_str)
         return '<td>%s</td>' % result_str
 
 # DECORATOR
