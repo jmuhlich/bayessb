@@ -4,6 +4,8 @@ from inspect import ismodule
 from bayessb.multichain import MCMCSet
 import pickle
 import inspect
+import scipy.cluster.hierarchy
+from matplotlib import pyplot as plt
 
 reporter_dict = {}
 
@@ -221,6 +223,32 @@ class Report(object):
 
         f = open(filename, 'wb')
         f.write(lines)
+
+    def cluster_by_maximum_likelihood(self):
+        """Cluster the models based on maximum_likelihood."""
+        # Get the maximum likelihood row from the results table
+        ml_results = None
+        for i, reporter in enumerate(self.reporters):
+            if reporter.func_name == "maximum_likelihood":
+                ml_results = self.results[i]
+        if ml_results is None:
+            raise Exception("Couldn't find the maximum likelihood row in the "
+                            "results table.")
+
+        # Calculate distance matrix
+        num_results = len(ml_results)
+        D = scipy.zeros([num_results, num_results])
+        for i in range(num_results):
+            for j in range(num_results):
+                D[i, j] = abs(ml_results[i].value - ml_results[j].value)
+
+        # Compute and plot first dendrogram
+        Y = scipy.cluster.hierarchy.linkage(D, method='centroid')
+        plt.figure()
+        Z = scipy.cluster.hierarchy.dendrogram(Y,
+                labels=[n.split(' ')[0] for n in self.names])
+                #leaf_label_rotation=0)
+        plt.show()
 
 class Result(object):
     """Stores the results associated with the execution of a reporter function.
