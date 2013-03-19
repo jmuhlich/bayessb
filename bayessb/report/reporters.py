@@ -130,3 +130,39 @@ def sample_fits(mcmc_set):
     plt.savefig(thumbnail_filename, dpi=10)
 
     return ThumbnailResult(thumbnail_filename, plot_filename)
+
+@reporter('Marginals')
+def marginals(mcmc_set):
+    """Returns the vector of Gelman-Rubin convergence criterion values and a
+    link to an HTML file containing plots of the traces of the walk for each
+    parameter fitted."""
+
+    # Prepare html for page showing plots of parameter traces
+    html_str = "<html><head><title>Marginal distributions for " \
+               "%s</title></head>\n" % mcmc_set.name
+    html_str += "<body><p>Marginal distributions for for %s</p>\n" \
+                % mcmc_set.name
+    img_str_list = []
+
+    # Make plots of parameter traces
+    for i in range(mcmc_set.chains[0].num_estimate):
+        param_name = mcmc_set.chains[0].options.estimate_params[i].name
+        plt.figure()
+        chains_for_param = [chain.positions[:,i] for chain in mcmc_set.chains]
+        plt.hist(chains_for_param, histtype='step')
+        plt.title("Parameter: %s" % param_name)
+        plot_filename = '%s_marginal_%s.png' % (mcmc_set.name, param_name)
+        plt.savefig(plot_filename)
+        img_str_list.append(plot_filename)
+
+    # Make the html file
+    html_str += '\n'.join([
+        '<a href="%s"><img src="%s" width=400 /></a>' %
+        (i, i) for i in img_str_list])
+    html_str += "</body></html>"
+    html_filename = '%s_marginals.html' % mcmc_set.name
+    with open(html_filename, 'w') as f:
+        f.write(html_str)
+
+    return Result(None, html_filename)
+
