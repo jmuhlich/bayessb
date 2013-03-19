@@ -109,7 +109,7 @@ class MCMC(object):
 
     def __init__(self, options):
         self.options = self.validate(options)
-    
+
     def __getstate__(self):
         # clear solver since it causes problems with pickling
         state = self.__dict__.copy()
@@ -125,7 +125,7 @@ class MCMC(object):
         """Initialize internal state and runs the parameter estimation."""
         self.initialize()
         self.estimate()
-        
+
     def validate(self, options):
         """Return a validated copy of options with defaults applied."""
         # FIXME should this live in MCMCOpts?
@@ -137,7 +137,7 @@ class MCMC(object):
 
         if options.estimate_params is None or not len(options.estimate_params):
             raise Exception("estimate_params must contain a list of parameters")
-            
+
         # clamp hessian_period to actual number of steps
         if options.use_hessian:
             options.hessian_period = min(options.hessian_period, options.nsteps)
@@ -155,14 +155,14 @@ class MCMC(object):
         else:
             # clamp it to actual number of steps
             options.anneal_length = min(options.anneal_length, options.nsteps)
-            
+
         # default for sigma_adj_interval if unspecified
         if options.sigma_adj_interval is None:
             # default to 10 adjustments throughout the annealing phase
             options.sigma_adj_interval = max(int(options.anneal_length / 10), 1)
-            
+
         return options
-        
+
     def initialize(self):
         """Initialize internal state from the option set."""
 
@@ -173,15 +173,17 @@ class MCMC(object):
             self.initial_values = self.options.initial_values
         else:
             # if no explicit values given, take values from model
-            self.initial_values = [p.value for p in self.options.estimate_params]
+            self.initial_values = [p.value
+                                   for p in self.options.estimate_params]
         # indices of parameters to be estimated
-        self.estimate_idx = [i for i, p in enumerate(self.options.model.parameters)
-                             if p in self.options.estimate_params]
-            
+        self.estimate_idx = [i for i, p
+                                   in enumerate(self.options.model.parameters)
+                               if p in self.options.estimate_params]
+
         # we actually work in a log-transformed phase space
         self.initial_position = np.log10(self.initial_values)
         self.position = self.initial_position
-            
+
         # need to do this before init_solver
         self.ode_options = {};
         if self.options.rtol is not None:
@@ -277,30 +279,22 @@ class MCMC(object):
                     self.reject_move()
 
             # -------ADJUSTING SIGMA & TEMPERATURE (ANNEALING)--------
-            # XXX why did I move this first bit outside the iter<anneal_length test (below)?
+            # XXX why did I move this first bit outside the
+            # iter<anneal_length test (below)?
             if self.iter % self.options.sigma_adj_interval == 0:
-
-                # Calculate the acceptance rate only over the recent steps
-                # unless we haven't done enough steps yet
-                window = self.options.accept_window
-                if self.iter < window:
-                    accept_rate = float(self.acceptance) / (self.iter + 1)
-                else:
-                    accept_rate = np.sum(self.accepts[(self.iter - window): 
-                                            self.iter]) / float(window)
+                accept_rate = float(self.acceptance) / (self.iter + 1)
 
                 if accept_rate < self.options.accept_rate_target:
                     if self.sig_value > self.options.sigma_min:
-                        #self.sig_value -= self.options.sigma_step
-                        self.sig_value *= self.options.sigma_step
+                        self.sig_value -= self.options.sigma_step
                 else:
                     if self.sig_value < self.options.sigma_max:
-                        #self.sig_value += self.options.sigma_step
-                        self.sig_value *= (1. / self.options.sigma_step)
+                        self.sig_value += self.options.sigma_step
 
             if self.iter < self.options.anneal_length:
-                self.T = 1 + (self.options.T_init - 1) * math.e ** (-self.iter * self.T_decay)
-                
+                self.T = 1 + (self.options.T_init - 1) * \
+                         math.e ** (-self.iter * self.T_decay)
+
             # log some interesting variables
             self.positions[self.iter,:] = self.test_position
             self.priors[self.iter] = self.test_prior
@@ -309,13 +303,13 @@ class MCMC(object):
             self.delta_posteriors[self.iter] = delta_posterior
             self.sigmas[self.iter] = self.sig_value
             self.ts[self.iter] = self.T
-                
+
             # call user-callback step function
             if self.options.step_fn:
                 self.options.step_fn(self)
-            
+
             self.iter += 1
-        
+
     def accept_move(self):
         """Accept the current proposed move."""
         self.accept_prior = self.test_prior
@@ -400,7 +394,7 @@ class MCMC(object):
             # square root of the eigenvalues. length is furthermore scaled down
             # by a constant factor.
             step = (eig_vec / adj_eig_val ** 0.5).dot(step) \
-                * self.options.hessian_scale * self.sig_value
+                * self.options.hessian_scale
         # the proposed position is our most recent accepted position plus the
         # step we just calculated
         return self.position + step
@@ -686,7 +680,7 @@ class MCMCOpts(object):
     """
 
     def __init__(self):
-        self.model              = None    
+        self.model              = None
         self.estimate_params    = None
         self.initial_values     = None
         self.tspan              = None
