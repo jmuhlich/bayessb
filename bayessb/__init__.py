@@ -199,8 +199,14 @@ class MCMC(object):
         self.accept_likelihood = self.initial_likelihood
         self.accept_posterior = self.initial_posterior
 
-        self.T_decay = -math.log10(1e-6) / self.options.anneal_length;
-            
+        # If anneal_length is 0, self.T_decay is irrelevant/undefined
+        if self.options.anneal_length != 0:
+            self.T_decay = -math.log10(1e-6) / self.options.anneal_length;
+        # If anneal_length is 0, then set self.T_decay to None so that we
+        # get an error if we ever try to use it
+        else:
+            self.T_decay = None
+
         self.random = np.random.RandomState(self.options.seed)
 
         self.start_iter = 0;
