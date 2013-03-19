@@ -340,6 +340,45 @@ class FloatListResult(Result):
             result_str = '<a href="%s">%s</a>' % (self.link, result_str)
         return '<td>%s</td>' % result_str
 
+class ThumbnailResult(Result):
+    """A result that is an img that should be displayed as a thumbnail.
+
+    Results of this type have no value associated with them, so the ``value``
+    field is set to ``None``.
+    """
+    def __init__(self, thumbnail_link, img_link):
+        """Create the FloatListResult object.
+
+        Parameters
+        ----------
+        thumbnail_link : string
+            Path to the filename of the thumbnail image.
+        img_link : string
+            Path to the filename of the full-size image.
+        """
+        if thumbnail_link is None or img_link is None:
+            raise ValueError("Arguments to ThumbnailResult.__init__() "
+                             "cannot be None.")
+
+        Result.__init__(self, None, img_link)
+        self.thumbnail_link = thumbnail_link
+
+    def get_html(self):
+        """Returns the HTML string for the table cell to contain the result.
+
+        The string representation for the thumbnail is of the form
+        ``<td><a href="..."><img ...></a></td>``, with the anchor tag
+        linking to the full-size image.
+
+        Returns
+        -------
+        string
+            A string containing the HTML for the table cell, including the
+            opening and closing (<td>...</td>) tags.
+        """
+        return '<td><a href="%s"><img src="%s" /></a></td>' % \
+               (self.link, self.thumbnail_link)
+
 # DECORATOR
 def reporter(name):
     """Decorator for reporter functions.

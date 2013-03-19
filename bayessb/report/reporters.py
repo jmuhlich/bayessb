@@ -1,10 +1,11 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from bayessb.report import reporter, Result, FloatListResult
+from bayessb.report import reporter, Result, FloatListResult, ThumbnailResult
 from bayessb import convergence
 from StringIO import StringIO
 
 reporter_group_name = "Estimation"
+num_samples = 100
 
 @reporter('Number of chains')
 def num_chains(mcmc_set):
@@ -104,3 +105,28 @@ def maximum_posterior(mcmc_set):
     # Return the max posterior along with link to the plot
     return Result(max_posterior, filename)
 
+@reporter('Sample fits')
+def sample_fits(mcmc_set):
+    tspan = mcmc_set.chains[0].options.tspan
+    plt.figure()
+    plot_filename = '%s_sample_fits.png' % mcmc_set.name
+    thumbnail_filename = '%s_sample_fits_th.png' % mcmc_set.name
+
+    # Make sure we can call the method 'get_observable_timecourse'
+    if not hasattr(mcmc_set.chains[0], 'get_observable_timecourse') or \
+       not hasattr(mcmc_set.chains[0], 'plot_data'):
+        return Result('None', None)
+
+    # Plot the original data
+    mcmc_set.chains[0].plot_data()
+
+    # Plot a sampling of trajectories from the original parameter set
+    for i in range(num_samples):
+        position = mcmc_set.get_sample_position()
+        x = mcmc_set.chains[0].get_observable_timecourse(position=position)
+        plt.plot(tspan, x, color='g', alpha=0.1)
+
+    plt.savefig(plot_filename)
+    plt.savefig(thumbnail_filename, dpi=10)
+
+    return ThumbnailResult(thumbnail_filename, plot_filename)
