@@ -206,8 +206,21 @@ class Report(object):
                                    (rowspan, cur_module_name)
             prev_module_name = cur_module_name
 
-            # Add the row header showing the name of the current reporter
-            html_row_string += '<th>%s</th>' % self.reporters[i].reporter_name
+            # Add the row header showing the name of the current reporter.
+            # If the reporter has an "evidence" field associated with it,
+            # create a link to a page describing the evidence
+            if (hasattr(self.reporters[i], 'reporter_evidence') and
+               self.reporters[i].reporter_evidence is not None):
+                evidence_filename = '%s_evidence.html' % \
+                                    self.reporters[i].__name__
+                with open(evidence_filename, 'w') as f:
+                    f.write(self.reporters[i].reporter_evidence.get_html())
+                reporter_html = '<th><a href="%s">%s</a></th>' % \
+                                (evidence_filename,
+                                self.reporters[i].reporter_name)
+            else:
+                reporter_html = '<th>%s</th>' % self.reporters[i].reporter_name
+            html_row_string += reporter_html
 
             # Add the HTML-ified result
             for result in row:
@@ -424,7 +437,7 @@ class MeanSdResult(Result):
         return format_str % (self.link, self.value, self.sd)
 
 # DECORATOR
-def reporter(name):
+def reporter(name, evidence=None):
     """Decorator for reporter functions.
 
     Sets the ``name`` field of the function to indicate its name. The name of
@@ -455,5 +468,6 @@ def reporter(name):
         reporter_list = reporter_dict.setdefault(reporter_mod_name, [])
         reporter_list.append(f)
         f.reporter_name = name
+        f.reporter_evidence = evidence
         return f
     return wrap
