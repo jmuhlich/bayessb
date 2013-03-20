@@ -252,23 +252,22 @@ class Report(object):
 
 class Result(object):
     """Stores the results associated with the execution of a reporter function.
+
+    Parameters
+    ----------
+    value : anything
+        The return value of a reporter function.
+    link : string
+        String representing a hyperlink, e.g. to information or
+        visualizations supporting the reporter result.
     """
     def __init__(self, value, link):
-        """Create the Result object.
-
-        Parameters
-        ----------
-        value : anything
-            The return value of a reporter function.
-        link : string
-            String representing a hyperlink, e.g. to information or
-            visualizations supporting the reporter result.
-        """
         self.value = value
         self.link = link
 
     def get_html(self):
-        """Returns the default HTML string for the table cell to contain the result.
+        """Returns the default HTML string for the table cell to contain the
+        result.
 
         Returns
         -------
@@ -296,21 +295,20 @@ class FloatListResult(Result):
     """Implements formatting for a list of floating point values.
 
     In particular, specifies the precision at which they should be displayed.
-    """
-    def __init__(self, value, link, precision=2):
-        """Create the FloatListResult object.
 
-        Parameters
-        ----------
-        value : anything
-            The return value of a reporter function.
-        link : string
-            String representing a hyperlink, e.g. to information or
-            visualizations supporting the reporter result.
-        precision : int
-            The number of decimal places to display for each entry in the
-            list of values.
-        """
+    Parameters
+    ----------
+    value : anything
+        The return value of a reporter function.
+    link : string
+        String representing a hyperlink, e.g. to information or
+        visualizations supporting the reporter result.
+    precision : int (optional)
+        The number of decimal places to display for each entry in the
+        list of values. Default is 2.
+    """
+
+    def __init__(self, value, link, precision=2):
         Result.__init__(self, value, link)
         self.precision = precision
 
@@ -378,6 +376,52 @@ class ThumbnailResult(Result):
         """
         return '<td><a href="%s"><img src="%s" /></a></td>' % \
                (self.link, self.thumbnail_link)
+
+class MeanSdResult(Result):
+    """A result whose value is expressed as a mean and standard deviation.
+
+    For example, to summarize a distribution which can be viewed by accessing
+    the associated link. For these results, the "value" attribute is set to
+    the mean; the SD is stored in the additional attribute ``sd``.
+
+    Parameters
+    ----------
+    mean : float
+        The mean value associated with the result.
+    sd : float
+        The standard deviation associated with the result.
+    link : string
+        Path to the filename of any additional data.
+    precision : int (optional)
+        The number of decimal places to use when displaying the mean
+        and standard deviation. Default is 3.
+    """
+
+    def __init__(self, mean, sd, link, precision=3):
+        if mean is None or sd is None or sd < 0:
+            raise ValueError("Invalid argument to MeanSdResult constructor.")
+
+        Result.__init__(self, mean, link)
+        self.sd = sd
+        self.precision = precision
+
+    def get_html(self):
+        """Returns the HTML string for the table cell to contain the result.
+
+        The string representation for the thumbnail is of the form
+        ``<td><a href="...">mean &plusmn; sd</a></td>``, with the anchor tag
+        linking to the full-size image.
+
+        Returns
+        -------
+        string
+            A string containing the HTML for the table cell, including the
+            opening and closing (<td>...</td>) tags.
+        """
+
+        format_str = '<td><a href="%%s">%%.%dg &plusmn; %%.%dg</a></td>' % \
+                     (self.precision, self.precision)
+        return format_str % (self.link, self.value, self.sd)
 
 # DECORATOR
 def reporter(name):
