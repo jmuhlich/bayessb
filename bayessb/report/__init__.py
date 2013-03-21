@@ -6,6 +6,7 @@ import pickle
 import inspect
 import scipy.cluster.hierarchy
 from matplotlib import pyplot as plt
+from matplotlib import cm
 
 reporter_dict = {}
 
@@ -175,7 +176,8 @@ class Report(object):
                     <style type="text/css">
                         body { font-family: sans-serif; font-size: 10pt}
                         table { border-collapse: collapse; }
-                        th { align: left; font-weight: bold; vertical-align: top}
+                        th { align: left; font-weight: bold;
+                             vertical-align: top}
                         td, th { border: 1px solid #aaa; padding: 0.2em; }
                     </style>
                 </head>
@@ -292,10 +294,13 @@ class Result(object):
     link : string
         String representing a hyperlink, e.g. to information or
         visualizations supporting the reporter result.
+    expectation : anything (optional)
+        The expected value of the reporter.
     """
-    def __init__(self, value, link):
+    def __init__(self, value, link, expectation=None):
         self.value = value
         self.link = link
+        self.expectation = expectation
 
     def get_html(self):
         """Returns the default HTML string for the table cell to contain the
@@ -455,6 +460,42 @@ class MeanSdResult(Result):
                      (self.precision, self.precision)
         return format_str % (self.link, self.value, self.sd)
 
+class FuzzyBooleanResult(Result):
+    """Stores the result of a yes/no test applied to a chain by sampling.
+
+    Color-codes the result of the boolean test as red (bad) or green (good)
+    depending on its deviation from the expected value.
+    """
+
+    def __init__(self, value, link, expectation):
+        if value is None or expectation is None:
+            raise ValueError("value and expectation arguments cannot be None.")
+        if not isinstance(value, float):
+            raise ValueError("value must be a float.")
+        if not isinstance(expectation, float):
+            raise ValueError("value must be a float.")
+        Result.__init__(self, value, link, expectation)
+
+    def get_html(self):
+        """Returns the default HTML string for the table cell to contain the
+        result.
+
+        Returns
+        -------
+        string
+            A string containing the HTML for the table cell, including the
+            opening and closing (<td>...</td>) tags.
+        """
+        # Format the result
+        result_str = '%-.2f' % self.value
+        if self.link is not None:
+            result_str = '<a href="%s">%s</a>' % (self.link, result_str)
+        error = abs(self.value - self.expectation)
+        c_map = cm.get_cmap('RdYlGn')
+        rgba = c_map(1 - error)
+        color_str = "#%02x%02x%02x" % tuple([v*255 for v in rgba[0:3]])
+        return '<td style="background: %s">%s</td>' % (color_str, result_str)
+
 # DECORATOR
 def reporter(name, evidence=None):
     """Decorator for reporter functions.
@@ -473,6 +514,8 @@ def reporter(name, evidence=None):
     ----------
     name : string
         The human-readable name for the reporter function.
+    evidence : Evidence
+        The evidence for the reporter.
 
     Returns
     -------
