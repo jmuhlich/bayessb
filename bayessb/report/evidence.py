@@ -35,4 +35,18 @@ class Evidence(object):
         self.citation = citation
 
     def get_html(self):
-        return self.text
+        html_str = """
+            <p><a href="%s"><img src="%s" /></a></p>
+            <p>%s
+            <br />PMID: <a href="http://www.ncbi.nlm.nih.gov/pubmed/%s">%s</a>
+            <br />DOI: <a href="http://dx.doi.org/%s">%s</a>
+            <p><pre>
+            %s
+            </pre>
+            </p>
+        """ % (self.image, self.image,
+               self.citation.citation,
+               self.citation.pmid, self.citation.pmid,
+               self.citation.doi, self.citation.doi,
+               self.text)
+        return html_str

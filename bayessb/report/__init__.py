@@ -210,11 +210,30 @@ class Report(object):
             # If the reporter has an "evidence" field associated with it,
             # create a link to a page describing the evidence
             if (hasattr(self.reporters[i], 'reporter_evidence') and
-               self.reporters[i].reporter_evidence is not None):
+                            self.reporters[i].reporter_evidence is not None):
                 evidence_filename = '%s_evidence.html' % \
                                     self.reporters[i].__name__
+                evidence_str = """
+                    <html>
+                    <head><title>Evidence for %s</title>
+                    <style type="text/css">
+                        img { max-width : 400px;
+                              max-height : 400px; }
+                        body { font-family: sans-serif; font-size: 10pt}
+                        h1 { font-weight : bold;
+                             font-size : 14pt; }
+                    </style>
+                    </head>
+                    <body>
+                    <p><h1>Evidence that %s</h1>
+                """ % (self.reporters[i].reporter_name,
+                       self.reporters[i].reporter_name)
+                evidence_str += self.reporters[i].reporter_evidence.get_html()
+                evidence_str += "</body></html>"
+
                 with open(evidence_filename, 'w') as f:
-                    f.write(self.reporters[i].reporter_evidence.get_html())
+                    f.write(evidence_str)
+
                 reporter_html = '<th><a href="%s">%s</a></th>' % \
                                 (evidence_filename,
                                 self.reporters[i].reporter_name)
