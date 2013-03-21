@@ -3,6 +3,8 @@ from matplotlib import pyplot as plt
 from bayessb.report import reporter, Result, FloatListResult, ThumbnailResult
 from bayessb import convergence
 from StringIO import StringIO
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 reporter_group_name = "Estimation"
 num_samples = 100
@@ -49,15 +51,18 @@ def convergence_criterion(mcmc_set):
     # Make plots of parameter traces
     for i in range(mcmc_set.chains[0].num_estimate):
         param_name = mcmc_set.chains[0].options.estimate_params[i].name
-        plt.figure()
+        fig = Figure()
+        ax = fig.gca()
         for chain in mcmc_set.chains:
             if chain.pruned:
-                plt.plot(chain.thinned_accept_steps, chain.positions[:,i])
+                ax.plot(chain.thinned_accept_steps, chain.positions[:,i])
             else:
-                plt.plot(chain.positions[:, i])
-        plt.title("Parameter: %s" % param_name)
+                ax.plot(chain.positions[:, i])
+        ax.set_title("Parameter: %s" % param_name)
         plot_filename = '%s_trace_%s.png' % (mcmc_set.name, param_name)
-        plt.savefig(plot_filename)
+        canvas = FigureCanvasAgg(fig)
+        fig.set_canvas(canvas)
+        fig.savefig(plot_filename)
         img_str_list.append(plot_filename)
 
     # Make the html file
@@ -79,10 +84,12 @@ def maximum_likelihood(mcmc_set):
 
     # Plot the maximum likelihood fit
     if hasattr(mcmc_set.chains[0], 'fit_plotting_function'):
-        mcmc_set.chains[0].fit_plotting_function(
+        fig = mcmc_set.chains[0].fit_plotting_function(
                                         position=max_likelihood_position)
         filename = '%s_max_likelihood_plot.png' % mcmc_set.name
-        plt.savefig(filename)
+        canvas = FigureCanvasAgg(fig)
+        fig.set_canvas(canvas)
+        fig.savefig(filename)
     else:
         filename = None
 
@@ -95,10 +102,12 @@ def maximum_posterior(mcmc_set):
 
     # Plot the maximum posterior fit
     if hasattr(mcmc_set.chains[0], 'fit_plotting_function'):
-        mcmc_set.chains[0].fit_plotting_function(
+        fig = mcmc_set.chains[0].fit_plotting_function(
                                         position=max_posterior_position)
         filename = '%s_max_posterior_plot.png' % mcmc_set.name
-        plt.savefig(filename)
+        canvas = FigureCanvasAgg(fig)
+        fig.set_canvas(canvas)
+        fig.savefig(filename)
     else:
         filename = None
 
@@ -108,7 +117,8 @@ def maximum_posterior(mcmc_set):
 @reporter('Sample fits')
 def sample_fits(mcmc_set):
     tspan = mcmc_set.chains[0].options.tspan
-    plt.figure()
+    fig = Figure()
+    ax = fig.gca()
     plot_filename = '%s_sample_fits.png' % mcmc_set.name
     thumbnail_filename = '%s_sample_fits_th.png' % mcmc_set.name
 
@@ -118,16 +128,18 @@ def sample_fits(mcmc_set):
         return Result('None', None)
 
     # Plot the original data
-    mcmc_set.chains[0].plot_data()
+    mcmc_set.chains[0].plot_data(ax)
 
     # Plot a sampling of trajectories from the original parameter set
     for i in range(num_samples):
         position = mcmc_set.get_sample_position()
         x = mcmc_set.chains[0].get_observable_timecourse(position=position)
-        plt.plot(tspan, x, color='g', alpha=0.1)
+        ax.plot(tspan, x, color='g', alpha=0.1)
 
-    plt.savefig(plot_filename)
-    plt.savefig(thumbnail_filename, dpi=10)
+    canvas = FigureCanvasAgg(fig)
+    fig.set_canvas(canvas)
+    fig.savefig(plot_filename)
+    fig.savefig(thumbnail_filename, dpi=10)
 
     return ThumbnailResult(thumbnail_filename, plot_filename)
 
@@ -147,12 +159,15 @@ def marginals(mcmc_set):
     # Make plots of parameter traces
     for i in range(mcmc_set.chains[0].num_estimate):
         param_name = mcmc_set.chains[0].options.estimate_params[i].name
-        plt.figure()
+        fig = Figure()
+        ax = fig.gca()
         chains_for_param = [chain.positions[:,i] for chain in mcmc_set.chains]
-        plt.hist(chains_for_param, histtype='step')
-        plt.title("Parameter: %s" % param_name)
+        ax.hist(chains_for_param, histtype='step')
+        ax.set_title("Parameter: %s" % param_name)
         plot_filename = '%s_marginal_%s.png' % (mcmc_set.name, param_name)
-        plt.savefig(plot_filename)
+        canvas = FigureCanvasAgg(fig)
+        fig.set_canvas(canvas)
+        fig.savefig(plot_filename)
         img_str_list.append(plot_filename)
 
     # Make the html file
