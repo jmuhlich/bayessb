@@ -7,6 +7,10 @@ import inspect
 import scipy.cluster.hierarchy
 from matplotlib import pyplot as plt
 from matplotlib import cm
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+import numpy as np
+from StringIO import StringIO
 
 reporter_dict = {}
 
@@ -258,31 +262,127 @@ class Report(object):
         f = open(filename, 'wb')
         f.write(lines)
 
+    def write_tsv(self, filename):
+        """Write the transposed results table as a tab-separated file.
+
+        Transposition of the results table puts the models in rows and the
+        attributes in the columns, which is more suitable for most
+        machine-learning/analysis algorithms.
+        """
+
+        output = StringIO()
+
+        # Add the header line
+        output.write('model_name\t')
+        output.write('\t'.join([r.func_name for r in self.reporters]))
+        output.write('\n')
+
+        # Transpose the results list
+        results = zip(*self.results)
+
+        for model_name, result_row in zip(self.names, results):
+            output.write(model_name + '\t')
+            output.write('\t'.join([r.get_text() for r in result_row]))
+            output.write('\n')
+
+        with open(filename, 'w') as f:
+            f.write(output.getvalue())
+
     def cluster_by_maximum_likelihood(self):
         """Cluster the models based on maximum_likelihood."""
+
         # Get the maximum likelihood row from the results table
         ml_results = None
         for i, reporter in enumerate(self.reporters):
             if reporter.func_name == "maximum_likelihood":
                 ml_results = self.results[i]
         if ml_results is None:
-            raise Exception("Couldn't find the maximum likelihood row in the "
-                            "results table.")
+            raise Exception("Couldn't find the row in the "
+                            "results table for the maximum likelihood "
+                            "test.")
 
-        # Calculate distance matrix
-        num_results = len(ml_results)
-        D = scipy.zeros([num_results, num_results])
+        # Get the maximum likelihood row from the results table
+        tBidBax_monotonic_results = None
+        for i, reporter in enumerate(self.reporters):
+            if reporter.func_name == "tBid_Bax_monotonically_increasing":
+                tBidBax_monotonic_results = self.results[i]
+        if tBidBax_monotonic_results is None:
+            raise Exception("Couldn't find the row in the "
+                            "results table for the tBidBax monotonically "
+                            "increasing test.")
+
+        # Get the maximum likelihood row from the results table
+        iBax_monotonic_results = None
+        for i, reporter in enumerate(self.reporters):
+            if reporter.func_name == "iBax_monotonically_increasing":
+                iBax_monotonic_results = self.results[i]
+        if iBax_monotonic_results is None:
+            raise Exception("Couldn't find the row in the "
+                            "results table for the iBax monotonically "
+                            "increasing test.")
+
+        total_ml = np.sum([r.value for r in ml_results])
+        combined_results = []
+        # FIXME Need a better way of normalizing the max likelihood
+        #combined_results.append([r.value / total_ml for r in ml_results])
+        combined_results.append([np.log10(r.value/2) for r in ml_results])
+        combined_results.append([r.value for r in tBidBax_monotonic_results])
+        combined_results.append([r.value for r in iBax_monotonic_results])
+        combined_results = np.array(combined_results)
+
+        # Calculate distances between models based on tests
+        num_results = combined_results.shape[1]
+        D1 = scipy.zeros([num_results, num_results])
         for i in range(num_results):
             for j in range(num_results):
-                D[i, j] = abs(ml_results[i].value - ml_results[j].value)
+                D1[i, j] = np.linalg.norm(combined_results[:,i] -
+                                         combined_results[:,j])
 
         # Compute and plot first dendrogram
-        Y = scipy.cluster.hierarchy.linkage(D, method='centroid')
-        plt.figure()
-        Z = scipy.cluster.hierarchy.dendrogram(Y,
-                labels=[n.split(' ')[0] for n in self.names])
-                #leaf_label_rotation=0)
-        plt.show()
+        fig = plt.figure(figsize=(8,8))
+        ax1 = fig.add_axes([0.09, 0.1, 0.2, 0.6])
+        Y = scipy.cluster.hierarchy.linkage(D1, method='centroid')
+        Z1 = scipy.cluster.hierarchy.dendrogram(Y, orientation='right',
+                labels=[n.split(' ')[0] + ' ' + n.split(' ')[2]
+                        for n in self.names])
+        ax1.set_xticks([])
+        ax1.yaxis.tick_left()
+
+        # Calculate distances between tests based on models
+        num_results = combined_results.shape[0]
+        D2 = scipy.zeros([num_results, num_results])
+        for i in range(num_results):
+            for j in range(num_results):
+                D2[i, j] = np.linalg.norm(combined_results[i,:] -
+                                          combined_results[j,:])
+
+        # Compute and plot second dendrogram
+        ax2 = fig.add_axes([0.3, 0.71, 0.6, 0.2])
+        Y = scipy.cluster.hierarchy.linkage(D2, method='centroid')
+        Z2 = scipy.cluster.hierarchy.dendrogram(Y,
+                labels=['Max likelihood', 'tBidBax monotonic',
+                        'iBax monotonic'])
+        ax2.xaxis.tick_top()
+        ax2.set_yticks([])
+
+        # Plot distance matrix.
+        axmatrix = fig.add_axes([0.3,0.1,0.6,0.6])
+        idx1 = Z1['leaves']
+        idx2 = Z2['leaves']
+        D = np.zeros(combined_results.shape)
+        for i in range(combined_results.shape[0]):
+            for j in range(combined_results.shape[1]):
+                D[i,j] = combined_results[idx2[i], idx1[j]]
+        im = axmatrix.matshow(D.T, aspect='auto', origin='lower',
+                              cmap=cm.YlGnBu)
+        axmatrix.set_xticks([])
+        axmatrix.set_yticks([])
+
+        # Plot colorbar.
+        axcolor = fig.add_axes([0.91,0.1,0.02,0.6])
+        plt.colorbar(im, cax=axcolor)
+        fig.show()
+        fig.savefig('dendrogram.png')
 
 class Result(object):
     """Stores the results associated with the execution of a reporter function.
@@ -302,6 +402,21 @@ class Result(object):
         self.link = link
         self.expectation = expectation
 
+    def get_text(self):
+        """Returns a text representation of the result."""
+        result_str = ''
+        if isinstance(self.value, float):
+            result_str = '%-.2f' % self.value
+        elif isinstance(self.value, bool):
+            if self.value:
+                result_str = 'True'
+            else:
+                result_str = 'False'
+        else:
+            result_str = str(self.value)
+
+        return result_str
+
     def get_html(self):
         """Returns the default HTML string for the table cell to contain the
         result.
@@ -313,17 +428,7 @@ class Result(object):
             opening and closing (<td>...</td>) tags.
         """
         # Format the result
-        result_str = ''
-        if isinstance(self.value, float):
-            result_str = '%-.2f' % self.value
-        elif isinstance(self.value, bool):
-            if self.value:
-                result_str = 'True'
-            else:
-                result_str = 'False'
-        else:
-            result_str = self.value
-
+        result_str = self.get_text()
         if self.link is not None:
             result_str = '<a href="%s">%s</a>' % (self.link, result_str)
         return '<td>%s</td>' % result_str
@@ -349,6 +454,24 @@ class FloatListResult(Result):
         Result.__init__(self, value, link)
         self.precision = precision
 
+    def get_text(self):
+        """Returns the text representation of the floating point list.
+
+        The string representation of the floating point list is of the form
+        "<td>[xxx.xx, x.xx, xx.xx, ...]</td>, where the precision (number of
+        x's after decimal point) is controlled by the value assigned to the
+        property ``precision``.
+        """
+        # FIXME Finish comments
+        if self.value is None:
+            result_str = str(self.value)
+        else:
+            format_str = '%%.%dg' % self.precision
+            result_str = '['
+            result_str += ', '.join([format_str % f for f in self.value])
+            result_str += ']'
+        return result_str
+
     def get_html(self):
         """Returns the HTML string for the table cell to contain the result.
 
@@ -363,14 +486,7 @@ class FloatListResult(Result):
             A string containing the HTML for the table cell, including the
             opening and closing (<td>...</td>) tags.
         """
-        if self.value is None:
-            result_str = self.value
-        else:
-            format_str = '%%.%dg' % self.precision
-            result_str = '['
-            result_str += ', '.join([format_str % f for f in self.value])
-            result_str += ']'
-
+        result_str = self.get_text()
         if self.link is not None:
             result_str = '<a href="%s">%s</a>' % (self.link, result_str)
         return '<td>%s</td>' % result_str
