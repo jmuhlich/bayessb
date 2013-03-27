@@ -82,37 +82,97 @@ def maximum_likelihood(mcmc_set):
     # Get the maximum likelihood
     (max_likelihood, max_likelihood_position) = mcmc_set.maximum_likelihood()
 
-    # Plot the maximum likelihood fit
-    if hasattr(mcmc_set.chains[0], 'fit_plotting_function'):
-        fig = mcmc_set.chains[0].fit_plotting_function(
-                                        position=max_likelihood_position)
-        filename = '%s_max_likelihood_plot.png' % mcmc_set.name
-        canvas = FigureCanvasAgg(fig)
-        fig.set_canvas(canvas)
-        fig.savefig(filename)
-    else:
-        filename = None
-
-    return Result(max_likelihood, filename)
+    return show_fit_at_position(mcmc_set, max_likelihood,
+                                max_likelihood_position, 'max_likelihood')
 
 @reporter('Maximum posterior')
 def maximum_posterior(mcmc_set):
     # Get the maximum posterior
     (max_posterior, max_posterior_position) = mcmc_set.maximum_posterior()
 
-    # Plot the maximum posterior fit
-    if hasattr(mcmc_set.chains[0], 'fit_plotting_function'):
-        fig = mcmc_set.chains[0].fit_plotting_function(
-                                        position=max_posterior_position)
-        filename = '%s_max_posterior_plot.png' % mcmc_set.name
-        canvas = FigureCanvasAgg(fig)
-        fig.set_canvas(canvas)
-        fig.savefig(filename)
-    else:
-        filename = None
+    return show_fit_at_position(mcmc_set, max_posterior,
+                                max_posterior_position, 'max_posterior')
 
-    # Return the max posterior along with link to the plot
-    return Result(max_posterior, filename)
+def show_fit_at_position(mcmc_set, fit_value, position, fit_name):
+    """Create the result page showing the fit quality at the given position.
+
+    Parameters
+    ----------
+    mcmc_set : MCMCSet object
+        The set of MCMC chains
+    fit_value : float
+        The quality of fit at the given position.
+    position : numpy.array
+        Array of (log10-transformed) parameter values at the given position.
+    fit_name : string
+        A shorthand name for the fit position, e.g., "max_likelihood". Should
+        conform to rules of Python variable naming (no spaces, doesn't
+        start with a number, etc.).
+
+    Returns
+    -------
+    A result object containing the fit value and the link to the accompanying
+    HTML plot page, if any.
+    """
+
+    # If the MCMC object does not have a fit_plotting_function defined
+    # (for example, if it is a base MCMC object), then don't create a
+    # plot for visualization.
+    if not hasattr(mcmc_set.chains[0], 'fit_plotting_function'):
+        return Result(fit_value, None)
+
+    # Prepare html for page showing plots at position
+    html_str = "<html><head><title>Simulation of %s " \
+               "with %s parameter values</title></head>\n" \
+               % (mcmc_set.name, fit_name)
+    html_str += "<body><p>Simulation of %s with %s " \
+                "parameter values</p>\n" % (mcmc_set.name, fit_name)
+
+    # Show the plot vs. the data at the position
+    fig = mcmc_set.chains[0].fit_plotting_function(position=position)
+    img_filename = '%s_%s_plot.png' % (mcmc_set.name, fit_name)
+    canvas = FigureCanvasAgg(fig)
+    fig.set_canvas(canvas)
+    fig.savefig(img_filename)
+    html_str += '<p><img src="%s" /></p>' % img_filename
+
+    # Show the plot of all observables at the position
+    chain0 = mcmc_set.chains[0]
+    tspan = chain0.options.tspan
+    observables = chain0.options.model.observables
+    x = chain0.simulate(position=position, observables=True)
+
+    fig = Figure()
+    ax = fig.gca()
+    lines = []
+    for o in observables:
+        line = ax.plot(tspan, x[o.name])
+        lines.append(line)
+    ax.set_title("Observables at %s" % fit_name)
+    fig.legend(lines, [o.name for o in observables], 'lower right')
+    canvas = FigureCanvasAgg(fig)
+    fig.set_canvas(canvas)
+
+    img_filename = '%s_%s_species.png' % (mcmc_set.name, fit_name)
+    fig.savefig(img_filename)
+    html_str += '<p><img src="%s" /></p>' % img_filename
+
+    # Print the parameter values for the position as a dict that can be
+    # used to override the initial values
+    html_str += '<pre>%s_params = {\n' % fit_name
+    for i, p in enumerate(chain0.options.estimate_params):
+        html_str += "\t'%s': %.17g,\n" % \
+                    (p.name, 10 ** position[i])
+    html_str += '}</pre>'
+
+    html_str += '</body></html>'
+
+    # Create the html file
+    html_filename = '%s_%s_plot.html' % (mcmc_set.name, fit_name)
+    with open(html_filename, 'w') as f:
+        f.write(html_str)
+
+    return Result(fit_value, html_filename)
 
 @reporter('Sample fits')
 def sample_fits(mcmc_set):
