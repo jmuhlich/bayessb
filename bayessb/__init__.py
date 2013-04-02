@@ -672,11 +672,6 @@ class MCMCOpts(object):
         Seed for random number generator. Defaults to using a non-deterministic
         seed (see numpy.random.RandomState). If you want reproducible runs, you
         must set this to a constant value.
-    accept_window : int
-        The number of steps over which to calculate the current "local"
-        accept rate. If the local acceptance rate is too low or too high,
-        the step size is adjusted.
-
     """
 
     def __init__(self):
@@ -705,7 +700,6 @@ class MCMCOpts(object):
         self.sigma_step         = 0.125
         self.thermo_temp        = 1
         self.seed               = None
-        self.accept_window      = 200
 
     def copy(self):
         new_options = MCMCOpts()
