@@ -131,8 +131,6 @@ def show_fit_at_position(mcmc_set, fit_value, position, fit_name):
     # Show the plot vs. the data at the position
     fig = mcmc_set.chains[0].fit_plotting_function(position=position)
     img_filename = '%s_%s_plot.png' % (mcmc_set.name, fit_name)
-    canvas = FigureCanvasAgg(fig)
-    fig.set_canvas(canvas)
     fig.savefig(img_filename)
     html_str += '<p><img src="%s" /></p>' % img_filename
 
