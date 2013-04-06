@@ -13,27 +13,36 @@ num_samples = 100
 def num_chains(mcmc_set):
     return Result(len(mcmc_set.chains), None)
 
-"""
 @reporter('Estimation parameters')
 def estimation_parameters(mcmc_set):
     chain = mcmc_set.chains[0]
     opts = chain.options
     output = StringIO()
-    output.write("use_hessian: %s, " % opts.use_hessian)
-    output.write("hessian_period: %s, " % opts.hessian_period)
-    output.write("hessian_scale: %s, " % opts.hessian_scale)
-    output.write("norm_step_size: %s, " % opts.norm_step_size)
-    output.write("sigma_adj_interval: %s, " % opts.sigma_adj_interval)
-    output.write("anneal_length: %s, " % opts.anneal_length)
-    output.write("T_init: %s, " % opts.T_init)
-    output.write("accept_rate_target: %s, " % opts.accept_rate_target)
-    output.write("sigma_max: %s, " % opts.sigma_max)
-    output.write("sigma_min: %s, " % opts.sigma_min)
-    output.write("sigma_step: %s, " % opts.sigma_step)
-    output.write("seed: %s, " % opts.seed)
-    #output.write("accept_window: %s, " % opts.accept_window)
-    return Result(output.getvalue(), None)
-"""
+    output.write("<html><head /><body><pre>")
+    output.write("nbd_sites: %s\n" % chain.nbd_sites)
+    output.write("nbd_observables: %s\n" % chain.nbd_observables)
+    output.write("model: %s\n" % chain.builder.model.name)
+    output.write("use_hessian: %s\n" % opts.use_hessian)
+    output.write("hessian_period: %s\n" % opts.hessian_period)
+    output.write("hessian_scale: %s\n " % opts.hessian_scale)
+    output.write("norm_step_size: %s\n" % opts.norm_step_size)
+    output.write("anneal_length: %s\n" % opts.anneal_length)
+    output.write("T_init: %s\n" % opts.T_init)
+    output.write("thermo_temp: %s\n" % opts.thermo_temp)
+    output.write("accept_rate_target: %s\n" % opts.accept_rate_target)
+    output.write("sigma_max: %s\n" % opts.sigma_max)
+    output.write("sigma_min: %s\n" % opts.sigma_min)
+    output.write("sigma_step: %s\n" % opts.sigma_step)
+    output.write("sigma_adj_interval: %s\n" % opts.sigma_adj_interval)
+    output.write("initial_values: %s\n" % opts.initial_values)
+    output.write("</pre></body></html>")
+
+    # Write the estimation parameter description to a file
+    param_file_name = '%s_estimation_params.html' % mcmc_set.name
+    with open(param_file_name, 'w') as f:
+        f.write(output.getvalue())
+
+    return Result(None, param_file_name)
 
 @reporter('Conv. Criterion')
 def convergence_criterion(mcmc_set):
@@ -145,7 +154,7 @@ def show_fit_at_position(mcmc_set, fit_value, position, fit_name):
     lines = []
     for o in observables:
         line = ax.plot(tspan, x[o.name])
-        lines.append(line)
+        lines += line
     ax.set_title("Observables at %s" % fit_name)
     fig.legend(lines, [o.name for o in observables], 'lower right')
     canvas = FigureCanvasAgg(fig)
