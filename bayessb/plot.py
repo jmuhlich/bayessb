@@ -231,6 +231,10 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
                 c='k')
         ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
                    marker='x', c='k', alpha=0.3)
+    if bounds0 is not None:
+        ax.set_xbound(*bounds0)
+    if bounds1 is not None:
+        ax.set_ybound(*bounds1)
     if zmin is not None:
         ax.set_zbound(zmin, ax.get_zbound()[1])
     if zmax is not None:
