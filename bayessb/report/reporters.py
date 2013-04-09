@@ -5,6 +5,8 @@ from bayessb import convergence
 from StringIO import StringIO
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib import cm
+from matplotlib.font_manager import FontProperties
 
 reporter_group_name = "Estimation"
 num_samples = 100
@@ -24,7 +26,7 @@ def estimation_parameters(mcmc_set):
     output.write("model: %s\n" % chain.builder.model.name)
     output.write("use_hessian: %s\n" % opts.use_hessian)
     output.write("hessian_period: %s\n" % opts.hessian_period)
-    output.write("hessian_scale: %s\n " % opts.hessian_scale)
+    output.write("hessian_scale: %s\n" % opts.hessian_scale)
     output.write("norm_step_size: %s\n" % opts.norm_step_size)
     output.write("anneal_length: %s\n" % opts.anneal_length)
     output.write("T_init: %s\n" % opts.T_init)
@@ -57,17 +59,47 @@ def convergence_criterion(mcmc_set):
                 % mcmc_set.name
     img_str_list = []
 
+    # Useful variables
+    num_estimate = mcmc_set.chains[0].num_estimate
+    fontP = FontProperties()
+    fontP.set_size('small')
+    legend_kwargs = {'prop':fontP, 'ncol':1, 'bbox_to_anchor':(1, 1),
+                     'fancybox': True, 'shadow': True}
+
+    # Make plot of posterior
+    fig = Figure()
+    ax = fig.gca()
+    for i, chain in enumerate(mcmc_set.chains):
+        color = cm.jet(i/float(num_estimate - 1))
+        label = 's%d' % chain.options.seed
+        if chain.pruned:
+            line = ax.plot(chain.thinned_accept_steps, chain.posteriors, color=color,
+                    label=label)
+        else:
+            line = ax.plot(chain.posteriors, color=color, label=label)
+    ax.set_title("Posterior traces")
+    ax.legend(loc='upper left', **legend_kwargs)
+    posterior_plot_filename = '%s_posterior_trace.png' % mcmc_set.name
+    canvas = FigureCanvasAgg(fig)
+    fig.set_canvas(canvas)
+    fig.savefig(posterior_plot_filename)
+
     # Make plots of parameter traces
-    for i in range(mcmc_set.chains[0].num_estimate):
+    for i in range(num_estimate):
         param_name = mcmc_set.chains[0].options.estimate_params[i].name
         fig = Figure()
         ax = fig.gca()
-        for chain in mcmc_set.chains:
+        for j, chain in enumerate(mcmc_set.chains):
+            color = cm.jet(j/float(num_estimate - 1))
+            label = 's%d' % chain.options.seed
             if chain.pruned:
-                ax.plot(chain.thinned_accept_steps, chain.positions[:,i])
+                line = ax.plot(chain.thinned_accept_steps, chain.positions[:,i],
+                               color=color, label=label)
             else:
-                ax.plot(chain.positions[:, i])
+                line = ax.plot(chain.positions[:, i], color=color, label=label)
+
         ax.set_title("Parameter: %s" % param_name)
+        ax.legend(loc='upper left', **legend_kwargs)
         plot_filename = '%s_trace_%s.png' % (mcmc_set.name, param_name)
         canvas = FigureCanvasAgg(fig)
         fig.set_canvas(canvas)
@@ -75,6 +107,8 @@ def convergence_criterion(mcmc_set):
         img_str_list.append(plot_filename)
 
     # Make the html file
+    html_str += '<a href="%s"><img src="%s" width=400 /></a>' % \
+                (posterior_plot_filename, posterior_plot_filename)
     html_str += '\n'.join([
         '<a href="%s"><img src="%s" width=400 /></a>' %
         (i, i) for i in img_str_list])
