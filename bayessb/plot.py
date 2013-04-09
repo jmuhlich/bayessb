@@ -113,7 +113,7 @@ def scatter(mcmc, mask=True):
 
 def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
          margin=0.1, bounds0=None, bounds1=None, zmin=None, zmax=None,
-         parallelize=True, gridsize=20):
+         position_base=None, parallelize=True, gridsize=20):
     """
     Display the posterior of an MCMC walk on a 3-D surface.
 
@@ -149,6 +149,11 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
         for the Z axis of the plot. Any surface points outside this range will
         not be rendered. Defaults to the actual range of posterior values from
         the walk and the sampled surface.
+    position_base : array-like, optional
+        Vector in log10-parameter space providing values for dimensions *other*
+        than dim0/dim1 when calculating the posterior surface (values at
+        position dim0 and dim1 will be ignored). Defaults to the median of all
+        positions in the walk.
     parallelize : bool, optional
         If True (default), use the multiprocessing module to calculate the
         posterior surface in parallel using all available CPU cores. If False,
@@ -192,7 +197,11 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
     p0_mesh, p1_mesh = numpy.meshgrid(p0_vals, p1_vals)
     # calculate posterior value at all gridsize*gridsize points
     posterior_mesh = numpy.empty_like(p0_mesh)
-    position_base = numpy.median(mcmc.positions, axis=0)
+    if position_base is None:
+        position_base = numpy.median(mcmc.positions, axis=0)
+    else:
+        if len(position_base) != mcmc.positions.shape[1]:
+             raise ValueError("position_base must be the same length as mcmc position vector")
     # use multiprocessing to make use of multiple cores
     idx_iter = itertools.product(range(gridsize), range(gridsize))
     inputs = ((p0_mesh[i0, i1], p1_mesh[i0, i1]) for i0, i1 in idx_iter)
