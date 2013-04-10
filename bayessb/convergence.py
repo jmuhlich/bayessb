@@ -220,6 +220,9 @@ def convergence_criterion(mcmc_set):
         chain_set.append(np.copy(chain.positions))
         if (len(chain.positions) < min_accepts):
             min_accepts = len(chain.positions)
+    # Make sure we have some steps!
+    if min_accepts == 0:
+        return None
 
     # Truncate the chains to make them all the length of the one with
     # with the fewest accepts
