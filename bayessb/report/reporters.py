@@ -7,6 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib import cm
 from matplotlib.font_manager import FontProperties
+from bayessb.multichain import NoPositionsException
 
 reporter_group_name = "Estimation"
 num_samples = 100
@@ -123,7 +124,10 @@ def convergence_criterion(mcmc_set):
 @reporter('Maximum likelihood')
 def maximum_likelihood(mcmc_set):
     # Get the maximum likelihood
-    (max_likelihood, max_likelihood_position) = mcmc_set.maximum_likelihood()
+    try:
+        (max_likelihood, max_likelihood_position) = mcmc_set.maximum_likelihood()
+    except NoPositionsException as npe:
+        return Result(None, None)
 
     return show_fit_at_position(mcmc_set, max_likelihood,
                                 max_likelihood_position, 'max_likelihood')
@@ -131,7 +135,10 @@ def maximum_likelihood(mcmc_set):
 @reporter('Maximum posterior')
 def maximum_posterior(mcmc_set):
     # Get the maximum posterior
-    (max_posterior, max_posterior_position) = mcmc_set.maximum_posterior()
+    try:
+        (max_posterior, max_posterior_position) = mcmc_set.maximum_posterior()
+    except NoPositionsException as npe:
+        return Result(None, None)
 
     return show_fit_at_position(mcmc_set, max_posterior,
                                 max_posterior_position, 'max_posterior')
@@ -232,11 +239,15 @@ def sample_fits(mcmc_set):
     mcmc_set.chains[0].plot_data(ax)
 
     # Plot a sampling of trajectories from the original parameter set
-    for i in range(num_samples):
-        position = mcmc_set.get_sample_position()
-        timecourses = mcmc_set.chains[0].get_observable_timecourses(position=position)
-        for obs_name, timecourse in timecourses.iteritems():
-            ax.plot(tspan, timecourse, color='g', alpha=0.1, label=obs_name)
+    try:
+        for i in range(num_samples):
+            position = mcmc_set.get_sample_position()
+            timecourses = mcmc_set.chains[0].get_observable_timecourses(
+                                                                position=position)
+            for obs_name, timecourse in timecourses.iteritems():
+                ax.plot(tspan, timecourse, color='g', alpha=0.1, label=obs_name)
+    except NoPositionsException as npe:
+        pass
 
     canvas = FigureCanvasAgg(fig)
     fig.set_canvas(canvas)
