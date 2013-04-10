@@ -111,9 +111,9 @@ def scatter(mcmc, mask=True):
     # TODO: would axis('scaled') force the aspect ratio we want?
     plt.show()
 
-def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
-         margin=0.1, bounds0=None, bounds1=None, zmin=None, zmax=None,
-         position_base=None, parallelize=True, gridsize=20):
+def surf(mcmc, dim0, dim1, mask=True, walk=True, rejects=True, step=1,
+         square_aspect=True, margin=0.1, bounds0=None, bounds1=None, zmin=None,
+         zmax=None, position_base=None, parallelize=True, gridsize=20):
     """
     Display the posterior of an MCMC walk on a 3-D surface.
 
@@ -129,6 +129,9 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
         from the beginning of the walk.
     walk : bool, optional
         If True (default) render the walk positions. If False, do not render it.
+    rejects : bool, optional
+        If True (default) render each rejected position with an 'X'. If False,
+        do not render them.
     step : int, optional
         Render every `step`th positions along the walk. Defaults to 1 (render
         all positions). Useful to improve performance with very long walks.
@@ -171,8 +174,8 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
         mask = 0
     # create masked versions of a few vectors of interest
     display_slice = slice(mask, None, step)
-    accepts = mcmc.accepts[display_slice]
-    rejects = mcmc.rejects[display_slice]
+    accept_mask = mcmc.accepts[display_slice]
+    reject_mask = mcmc.rejects[display_slice]
     posteriors = mcmc.posteriors[display_slice]
     # filter out the position elements we aren't plotting
     positions = mcmc.positions[display_slice, (dim0, dim1)]
@@ -236,10 +239,11 @@ def surf(mcmc, dim0, dim1, mask=True, walk=True, step=1, square_aspect=True,
                             linewidth=0.02, alpha=0.2,
                             vmin=pmesh_min, vmax=pmesh_max)
     if walk:
-        ax.plot(positions[accepts,0], positions[accepts,1], posteriors[accepts],
-                c='k')
-        ax.scatter(positions[rejects,0], positions[rejects,1], posteriors[rejects],
-                   marker='x', c='k', alpha=0.3)
+        ax.plot(positions[accept_mask,0], positions[accept_mask,1],
+                posteriors[accept_mask], c='k')
+        if rejects:
+            ax.scatter(positions[reject_mask,0], positions[reject_mask,1],
+                       posteriors[reject_mask], marker='.', c='k', alpha=0.3, s=1)
     if bounds0 is not None:
         ax.set_xbound(*bounds0)
     if bounds1 is not None:
