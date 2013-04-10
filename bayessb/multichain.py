@@ -99,9 +99,9 @@ class MCMCSet(object):
             raise Exception("Cannot get a sample position until the chains " \
                             "have been pooled.")
 
-        if not self.pooled_positions:
-            raise NoPositionsException('There are no positions in the combined pool '
-                                       'of positions.')
+        if len(self.pooled_positions) == 0:
+            raise NoPositionsException('There are no positions in the combined '
+                                       'pool of positions.')
 
         rand_index = np.random.randint(len(self.pooled_positions))
         return self.pooled_positions[rand_index]
@@ -134,7 +134,7 @@ class MCMCSet(object):
         max_likelihood_position = None
         for chain in self.chains:
             # Make sure the chain is not empty!
-            if chain.likelihoods:
+            if len(chain.likelihoods) > 0:
                 chain_max_likelihood_index = np.nanargmin(chain.likelihoods)
                 chain_max_likelihood = \
                                 chain.likelihoods[chain_max_likelihood_index]
@@ -144,7 +144,7 @@ class MCMCSet(object):
                                 chain.positions[chain_max_likelihood_index]
 
         # Check if there are no positions
-        if max_likelihood_position = None:
+        if max_likelihood_position is None:
             raise NoPositionsException('The maximum likelihood could not be '
                         'determined because there are no accepted positions.')
         return (max_likelihood, max_likelihood_position)
@@ -161,7 +161,7 @@ class MCMCSet(object):
         max_posterior_position = None
         for chain in self.chains:
             # Make sure the chain is not empty!
-            if chain.likelihoods:
+            if len(chain.posteriors) > 0:
                 chain_max_posterior_index = np.nanargmin(chain.posteriors)
                 chain_max_posterior = \
                                 chain.posteriors[chain_max_posterior_index]
@@ -171,7 +171,7 @@ class MCMCSet(object):
                                 chain.positions[chain_max_posterior_index]
 
         # Check if there are no positions
-        if max_posterior_position = None:
+        if max_posterior_position is None:
             raise NoPositionsException('The maximum posterior could not be determined '
                                        'because there are no accepted positions.')
 

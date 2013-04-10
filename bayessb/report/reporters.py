@@ -274,7 +274,13 @@ def marginals(mcmc_set):
         param_name = mcmc_set.chains[0].options.estimate_params[i].name
         fig = Figure()
         ax = fig.gca()
-        chains_for_param = [chain.positions[:,i] for chain in mcmc_set.chains]
+        # Build a list of arrays containing positions for this parameter
+        chains_for_param = []
+        for chain in mcmc_set.chains:
+            # Don't try to plot marginals for a chain with no accepted steps!
+            if len(chain.positions) > 0:
+                chains_for_param.append(chain.positions[:,i])
+        # Plot the marginals
         ax.hist(chains_for_param, histtype='step')
         ax.set_title("Parameter: %s" % param_name)
         plot_filename = '%s_marginal_%s.png' % (mcmc_set.name, param_name)
