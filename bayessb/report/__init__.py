@@ -17,7 +17,7 @@ reporter_dict = {}
 class Report(object):
     """.. todo:: document this class """
 
-    def __init__(self, chain_filenames, reporters, names=None):
+    def __init__(self, chain_filenames, reporters, names=None, burn=0):
         """Create the Report object and run all reporter functions.
 
         Parameters
@@ -41,6 +41,8 @@ class Report(object):
             Names to be used as the column headers in the report results
             table. If not provided, the keys from the chains dict are used
             as the column names.
+        burn : int
+            Number of steps to discard from the beginning of the chain.
         """
 
         self.chain_filenames = chain_filenames
@@ -53,6 +55,8 @@ class Report(object):
         """List of the different types of models/fits reported on."""
         self.results = []
         """List of lists containing the results of reporter execution."""
+        self.burn = burn
+        """Number of steps to discard from the beginning of the chain."""
 
         # Unpack reporter modules, adding any reporter functions found
         for reporter in reporters:
@@ -101,7 +105,7 @@ class Report(object):
             mcmc_list.append(pickle.load(open(filename)))
 
         # Prune and pool the chains in the list
-        mcmc_set.initialize_and_pool(mcmc_list, mcmc_list[0].options.nsteps / 2)
+        mcmc_set.initialize_and_pool(mcmc_list, self.burn)
 
         print "Running reporters for %s..." % chain_list_name
         result = []
