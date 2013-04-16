@@ -39,7 +39,7 @@ def likelihood(mcmc, position):
 
 def prior(mcmc, position):
     if scenario == 1:
-        est = [1e-2, 1e7, 1e4, 1, -5, -5]
+        est = [1e-2, 1e7, 1e4, 1, 1, 1]
     elif scenario in (2, 3, 5):
         est = [1e-2, 1e7, 1e4]
     elif scenario == 4:
@@ -57,11 +57,11 @@ def step(mcmc):
 def print_fit(position):
     new_values = 10 ** position
     print
-    print '%-10s %-12s %-12s %-12s' % ('param', 'actual', 'fitted', '% error')
+    print '%-10s %-12s %-12s %s' % ('parameter', 'actual', 'fitted', 'log10(fit/actual)')
     for param, new_value in zip(opts.estimate_params, new_values):
-        error = abs(1 - param.value / new_value) * 100
-        values = (param.name, param.value, new_value, error)
-        print '%-10s %-12g %-12g %-12g' % values
+        change = numpy.log10(new_value / param.value)
+        values = (param.name, param.value, new_value, change)
+        print '%-10s %-12.2g %-12.2g %-+6.2f' % values
 
 def plot_fit(position):
     plt.figure()
